@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>are.na Search</title>
+    <link rel="stylesheet" href="/src/style.css" />
+</head>
+
+<body class="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 min-h-screen font-mono text-stone-700">
+    <div class="container mx-auto px-6 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-stone-800 mb-1">arena search</h1>
+            <p class="text-xs text-stone-500">find url references on are.na</p>
+        </header>
+
+        <!-- Main Search Interface -->
+        <div class="max-w-4xl mx-auto">
+            <!-- Search Form -->
+            <div class="bg-white/70 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-stone-200/50">
+                <!-- URL Input -->
+                <div class="mb-4">
+                    <input type="url" id="arena-url-input" placeholder="ciechanow.ski/gps"
+                        class="w-full px-4 py-3 bg-white/80 border-0 rounded-2xl text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-200 shadow-inner">
+                </div>
+
+                <!-- Controls Row -->
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <select id="arena-per-page-input"
+                        class="px-3 py-2 bg-white/60 border-0 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-orange-200 shadow-inner">
+                        <option value="24" selected>24 results</option>
+                        <option value="48">48 results</option>
+                        <option value="100">100 results</option>
+                    </select>
+
+                    <div class="flex items-center gap-2">
+                        <label for="arena-page-input" class="text-xs text-stone-500">page:</label>
+                        <input type="number" id="arena-page-input" value="1" min="1"
+                            class="w-16 px-3 py-2 bg-white/60 border-0 rounded-xl text-xs text-center focus:outline-none focus:ring-1 focus:ring-orange-200 shadow-inner">
+                    </div>
+
+                    <button id="arena-search-btn"
+                        class="px-6 py-2 bg-gradient-to-r from-orange-400 to-rose-400 text-white rounded-xl text-sm font-medium hover:from-orange-500 hover:to-rose-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        search
+                    </button>
+
+                    <!-- Auth Token Button -->
+                    <button id="auth-token-btn"
+                        class="px-3 py-2 bg-white/60 border-0 rounded-xl text-xs text-stone-500 hover:text-stone-700 hover:bg-white/80 transition-all shadow-inner">
+                        🔑 auth
+                    </button>
+                </div>
+
+                <!-- Auth Token Popup -->
+                <div id="auth-token-popup"
+                    class="hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-bold text-stone-700">auth token</h3>
+                            <button id="close-auth-popup" class="text-stone-400 hover:text-stone-600">✕</button>
+                        </div>
+
+                        <div class="mb-4">
+                            <input type="text" id="arena-auth-token-input" placeholder="paste your auth token here"
+                                class="w-full px-4 py-3 bg-stone-50 border-0 rounded-xl text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-200">
+                        </div>
+
+                        <div class="text-xs text-stone-600 mb-4">
+                            <div class="mb-2">
+                                <span class="font-medium">getting rate limited?</span> add your auth token to increase
+                                API limits
+                            </div>
+                            <div class="space-y-1 text-stone-500">
+                                <div>1. open any are.na page</div>
+                                <div>2. devtools → network → refresh</div>
+                                <div>3. find /graphql → copy x-auth-token</div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button id="save-auth-token"
+                                class="flex-1 px-4 py-2 bg-gradient-to-r from-orange-400 to-rose-400 text-white rounded-xl text-sm font-medium hover:from-orange-500 hover:to-rose-500 transition-all">
+                                save
+                            </button>
+                            <button id="clear-auth-token"
+                                class="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-sm hover:bg-stone-200 transition-all">
+                                clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Messages -->
+                <div id="arena-loading" class="hidden">
+                    <div class="flex items-center gap-2 text-xs text-stone-600 p-3 bg-orange-100/50 rounded-xl">
+                        <div class="animate-spin w-3 h-3 border border-orange-400 border-t-transparent rounded-full">
+                        </div>
+                        searching...
+                    </div>
+                </div>
+
+                <div id="arena-error" class="hidden p-3 bg-red-100/70 text-red-700 rounded-xl text-xs"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="arena-results" class="hidden mt-6 px-6">
+        <!-- Summary -->
+        <div id="arena-summary"
+            class="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-stone-200/50 mb-6"></div>
+
+        <!-- Pagination -->
+        <div class="flex justify-center mb-6">
+            <div id="arena-pagination" class="flex items-center gap-2"></div>
+        </div>
+
+        <!-- Results Grid -->
+        <div id="arena-search-results" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+    </div>
+    </div>
+
+    <script type="module" src="/src/arena-search.ts"></script>
+</body>
+
+</html>

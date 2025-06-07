@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-stone-100 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-stone-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-stone-400;
+}
+
+/* Smooth focus transitions */
+input:focus, select:focus, button:focus {
+  transition: all 0.2s ease;
+}
+
+/* Custom backdrop blur for better browser support */
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Result card hover effects */
+.result-card {
+  @apply transition-all duration-200 ease-out;
+}
+
+.result-card:hover {
+  @apply transform -translate-y-0.5 shadow-lg;
+}
+
+/* Pagination button styles */
+.pagination-btn {
+  @apply px-3 py-1.5 text-xs bg-white/70 border-0 rounded-lg transition-all hover:bg-white hover:shadow-sm;
+}
+
+.pagination-btn.active {
+  @apply bg-gradient-to-r from-orange-400 to-rose-400 text-white shadow-sm;
+}
+
+/* Token input with saved state indicator */
+.token-saved {
+  @apply bg-green-50 border-green-200;
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Custom grid responsive breakpoints */
+@media (min-width: 1280px) {
+  .xl\:col-span-2 {
+    grid-column: span 2 / span 2;
+  }
+  
+  .xl\:col-span-1 {
+    grid-column: span 1 / span 1;
+  }
+  
+  .xl\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Enhanced text selection */
+::selection {
+  @apply bg-orange-200 text-stone-800;
+}
+
+/* Subtle shadows and glows */
+.glass-card {
+  box-shadow: 
+    0 1px 3px 0 rgba(0, 0, 0, 0.1), 
+    0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Focus visible for accessibility */
+button:focus-visible, input:focus-visible, select:focus-visible {
+  @apply ring-2 ring-orange-300 ring-offset-1;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Result group hover effects */
+.result-group {
+  @apply transition-all duration-200 ease-out;
+}
+
+.result-group:hover {
+  @apply transform -translate-y-0.5 shadow-lg;
+}
+
+/* Block ID links styling */
+.result-group a[href*="/block/"] {
+  @apply transition-colors duration-150;
+}
+
+/* Improved spacing for grouped content */
+.result-group .space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+/* Enhanced tag styling */
+.result-group .px-2.py-1 {
+  @apply transition-all duration-150 hover:scale-105;
+}
+
+/* Better text line clamping */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Better wrapping for block IDs */
+.result-group .flex-wrap {
+  word-break: break-word;
+}
+
+/* Ensure proper spacing on mobile */
+@media (max-width: 640px) {
+  .container {
+    @apply px-4;
+  }
+  
+  .result-group {
+    @apply p-4;
+  }
+}
+
+/* Improved text wrapping */
+.break-all {
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
