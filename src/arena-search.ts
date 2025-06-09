@@ -49,43 +49,26 @@ function setupArenaSearch() {
     urlInput.value = 'henryzoo.com'; // Default URL
 
     // Attempt to auto-search if cached results for the default URL exist
-    const defaultUrlForCacheCheck = urlInput.value.trim();
-    if (defaultUrlForCacheCheck) {
-      const defaultPage = parseInt(pageInput.value) || 1;
-      const defaultPerPage = parseInt(perPageInput.value) || 24;
+    const defaultPage = parseInt(pageInput.value) || 1;
+    const defaultPerPage = parseInt(perPageInput.value) || 24;
 
-      // Normalize the default URL for cache key consistency
-      let normalizedDefaultUrl = defaultUrlForCacheCheck;
-      if (normalizedDefaultUrl.startsWith('https://')) {
-        normalizedDefaultUrl = normalizedDefaultUrl.substring('https://'.length);
-      } else if (normalizedDefaultUrl.startsWith('http://')) {
-        normalizedDefaultUrl = normalizedDefaultUrl.substring('http://'.length);
-      }
-      if (normalizedDefaultUrl.startsWith('www.')) {
-        normalizedDefaultUrl = normalizedDefaultUrl.substring('www.'.length);
-      }
-      if (normalizedDefaultUrl.endsWith('/')) {
-        normalizedDefaultUrl = normalizedDefaultUrl.slice(0, -1);
-      }
+    const cacheKey = `arena_search_cache_${urlInput.value}_${defaultPage}_${defaultPerPage}`;
+    const cacheDuration = 60 * 1000 * 60 * 24;
 
-      const cacheKey = `arena_search_cache_${normalizedDefaultUrl}_${defaultPage}_${defaultPerPage}`;
-      const cacheDuration = 60 * 1000; // 1 minute, consistent with getArenaSearchResults
-
-      try {
-        const cachedItemJSON = localStorage.getItem(cacheKey);
-        if (cachedItemJSON) {
-          const { timestamp, data } = JSON.parse(cachedItemJSON);
-          if (Date.now() - timestamp < cacheDuration) {
-            console.log('Valid cached results found for default URL, attempting auto-search.');
-            performSearch();
-          } else {
-            console.log('Cached results for default URL are stale, removing.');
-            localStorage.removeItem(cacheKey); // Clean up stale cache
-          }
+    try {
+      const cachedItemJSON = localStorage.getItem(cacheKey);
+      if (cachedItemJSON) {
+        const { timestamp } = JSON.parse(cachedItemJSON);
+        if (Date.now() - timestamp < cacheDuration) {
+          console.log('Valid cached results found for default URL, attempting auto-search.');
+          performSearch(cacheDuration);
+        } else {
+          console.log('Cached results for default URL are stale, removing.');
+          localStorage.removeItem(cacheKey); // Clean up stale cache
         }
-      } catch (e) {
-        console.warn('Error checking cache for auto-search:', e);
       }
+    } catch (e) {
+      console.warn('Error checking cache for auto-search:', e);
     }
   }
 
@@ -176,7 +159,7 @@ function setupArenaSearch() {
     authTokenInput.focus();
   }
 
-  async function performSearch() {
+  async function performSearch(cacheDuration: number = 60 * 1000) {
     const urlInputVal = urlInput.value.trim();
     if (!urlInputVal) {
       showError('Please enter a URL to search for');
@@ -209,10 +192,12 @@ function setupArenaSearch() {
       authToken?: string; 
       page?: number; 
       per?: number; 
+      cacheDuration?: number;
     } = {
       appToken: import.meta.env.VITE_ARENA_APP_TOKEN,
       page: parseInt(pageInput.value) || 1,
-      per: parseInt(perPageInput.value) || 24
+      per: parseInt(perPageInput.value) || 24,
+      cacheDuration: cacheDuration
     };
     
     const authToken = authTokenInput.value.trim();

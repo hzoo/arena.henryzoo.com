@@ -170,19 +170,20 @@ export async function getArenaSearchResults(url: string, options?: {
   authToken?: string,
   page?: number,
   per?: number,
-  connectionsPerBlock?: number // Added new option
+  connectionsPerBlock?: number,
+  cacheDuration?: number
 }): Promise<{
   total: number;
   results: SearchResult[];
 }> {
   const cacheKey = `arena_search_cache_${url}_${options?.page || 1}_${options?.per || 25}`;
-  const cacheDuration = 60 * 1000;
+  const duration = options?.cacheDuration || 60 * 1000;
 
   try {
     const cachedItem = localStorage.getItem(cacheKey);
     if (cachedItem) {
       const { timestamp, data } = JSON.parse(cachedItem);
-      if (Date.now() - timestamp < cacheDuration) {
+      if (Date.now() - timestamp < duration) {
         console.log('Returning cached results for:', url, options);
         return data;
       } else {
