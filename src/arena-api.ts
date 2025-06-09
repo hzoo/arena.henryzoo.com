@@ -1,22 +1,30 @@
 // Arena API GraphQL queries - using the full query structure from are.na
 const SEARCH_RESULTS_QUERY = `
-query SearchResultsQuery($term: Term, $where: [Where!], $what: What, $fields: Fields, $order: Order, $extensions: [ExtensionsEnum!], $page: Int, $per: Int, $before: String, $after: String) {
+query LinkMentions($url: String!, $per: Int, $page: Int) {
   searches {
     advanced(
-      term: $term
-      where: $where
-      what: $what
-      fields: $fields
-      order: $order
-      extensions: $extensions
+      term: { facet: $url }
+      fields: { facets: URL }
       per: $per
       page: $page
-      before: $before
-      after: $after
     ) {
       total
       results {
-        ...SearchResultsResultFragment
+        ... on Link {
+          source_url
+          href
+          connections(filter: EXCLUDE_OWN, per: $per) { # Assuming 'per' here is for connections pagination
+            user {
+              name
+              slug
+            }
+            channel {
+              title
+              slug
+              added_to_at
+            }
+          }
+        }
         __typename
       }
       __typename
@@ -24,223 +32,33 @@ query SearchResultsQuery($term: Term, $where: [Where!], $what: What, $fields: Fi
     __typename
   }
 }
-fragment SearchResultsResultFragment on SsearchResult {
-  __typename
-  ...GridCellChannelFragment
-  ...GridCellBlockFragment
-  ...GridCellUserFragment
-  ...GridCellGroupFragment
-  ... on Model {
-    id
-    __typename
-  }
-}
-fragment GridCellChannelFragment on Channel {
-  ...GridCellChannelContentFragment
-  id
-  href
-  created_at(relative: true)
-  counts {
-    contents
-    __typename
-  }
-}
-fragment GridCellChannelContentFragment on Channel {
-  id
-  title
-  added_to_at(relative: true)
-  visibility_name
-  counts {
-    contents
-    __typename
-  }
-  owner {
-    __typename
-    ... on User {
-      id
-      name
-      __typename
-    }
-    ... on Group {
-      id
-      name
-      __typename
-    }
-  }
-}
-fragment GridCellBlockFragment on Konnectable {
-  __typename
-  ...GridCellPendingFragment
-  ...GridCellTextFragment
-  ...GridCellImageFragment
-  ...GridCellLinkFragment
-  ...GridCellEmbedFragment
-  ...GridCellAttachmentFragment
-}
-fragment GridCellPendingFragment on PendingBlock {
-  id
-  iso_created_at: created_at(format: "%Y-%m-%dT%H:%M:%S.%LZ")
-  href
-}
-fragment GridCellTextFragment on Text {
-  ...GridCellTextContentFragment
-  id
-  href
-  title
-  counts {
-    comments
-    __typename
-  }
-}
-fragment GridCellTextContentFragment on Text {
-  id
-  truncatedContent: content(format: HTML, truncate: 1000, no_links: true)
-  sub_type {
-    __typename
-    ... on HexColor {
-      value
-      __typename
-    }
-  }
-}
-fragment GridCellImageFragment on Image {
-  ...GridCellImageContentFragment
-  id
-  href
-  title
-  counts {
-    comments
-    __typename
-  }
-  source {
-    url
-    __typename
-  }
-}
-fragment GridCellImageContentFragment on Image {
-  id
-  alt_text
-  resized_image {
-    ...GridCellResizedImageFragment
-    __typename
-  }
-}
-fragment GridCellResizedImageFragment on ResizedImage {
-  id
-  blurhash
-  grid_cell_resized_image: resized(
-    width: 300
-    height: 300
-    quality: 75
-    flatten: true
-  ) {
-    id
-    width
-    height
-    src_1x
-    src_2x
-    __typename
-  }
-}
-fragment GridCellLinkFragment on Link {
-  ...GridCellLinkContentFragment
-  id
-  href
-  title
-  source {
-    url
-    __typename
-  }
-  counts {
-    comments
-    __typename
-  }
-}
-fragment GridCellLinkContentFragment on Link {
-  id
-  resized_image {
-    ...GridCellResizedImageFragment
-    __typename
-  }
-}
-fragment GridCellEmbedFragment on Embed {
-  ...GridCellEmbedContentFragment
-  id
-  title
-  href
-  source {
-    url
-    provider_name
-    __typename
-  }
-  counts {
-    comments
-    __typename
-  }
-}
-fragment GridCellEmbedContentFragment on Embed {
-  id
-  resized_image {
-    ...GridCellResizedImageFragment
-    id
-    __typename
-  }
-}
-fragment GridCellAttachmentFragment on Attachment {
-  ...GridCellAttachmentContentFragment
-  id
-  title
-  href
-  counts {
-    comments
-    __typename
-  }
-}
-fragment GridCellAttachmentContentFragment on Attachment {
-  id
-  title
-  file_content_type
-  file_size
-  file_extension
-  resized_image {
-    ...GridCellResizedImageFragment
-    id
-    __typename
-  }
-}
-fragment GridCellUserFragment on User {
-  id
-  slug
-  name
-  href
-  initials
-  avatar
-}
-fragment GridCellGroupFragment on Group {
-  id
-  slug
-  name
-  href
-  initials
-  avatar
-}
 `;
 
 // Types for Arena API responses
-interface Channel {
-  id: string;
+interface Channel { // Keep Channel as it's used in the new connections structure
   title: string;
-  href: string;
+  slug: string;
+  added_to_at: string; // Keep as it's part of the new connections structure
+  // Removed fields not present in the new connections structure: id, href, visibility_name, counts, owner
 }
 
-interface SearchResult {
+interface User { // Add User interface for the new connections structure
+  name: string;
+  slug: string;
+}
+
+interface ConnectionInResult { // Renamed from Connection to avoid conflict if a global Connection type exists
+  user: User;
+  channel: Channel;
+  // Removed fields not present in the new connections structure: id, created_at
+}
+
+interface SearchResult { // Keep SearchResult, but update its potential structure
   __typename: string;
-  id: string;
-  title?: string;
-  href?: string;
-  source?: {
-    url: string;
-  };
+  source_url?: string; // from 'Link' type in query
+  href?: string;       // from 'Link' type in query
+  connections?: ConnectionInResult[]; // from 'Link' type in query
+  // Removed fields not present in the new query: id, title, source
 }
 
 // Core Arena API function - using exact configuration from are.na
@@ -329,13 +147,22 @@ export async function getArenaSearchResults(url: string, options?: {
   per?: number 
 }): Promise<{
   total: number;
-  results: any[];
+  results: SearchResult[]; // Updated to use the modified SearchResult type
 }> {
   try {
-    const searchData = await searchBlocksForUrl(url, options);
+    // The searchBlocksForUrl function now directly uses the simplified query
+    // so we can call arena directly with SEARCH_RESULTS_QUERY
+    const variables = {
+      url: url, // The query expects 'url' not 'term: { facet: url }'
+      page: options?.page || 1,
+      per: options?.per || 24
+    };
+
+    const result = await arena<any>(SEARCH_RESULTS_QUERY, variables, options);
+    
     return {
-      total: searchData.total || 0,
-      results: searchData.results || []
+      total: result.searches.advanced.total || 0,
+      results: result.searches.advanced.results || []
     };
   } catch (error) {
     console.error('Error getting Arena search results:', error);

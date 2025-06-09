@@ -152,7 +152,7 @@ function setupArenaSearch() {
 
     try {
       const searchResults = await getArenaSearchResults(url, options);
-      showResults(url, searchResults, options);
+      await showResults(url, searchResults, options);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
@@ -194,7 +194,7 @@ function setupArenaSearch() {
     resultsDiv.classList.add('hidden');
   }
 
-  function showResults(url: string, searchResults: { total: number; results: any[] }, options: any) {
+  async function showResults(url: string, searchResults: { total: number; results: any[] }, options: any) {
     // Show summary
     const currentPage = options.page || 1;
     const perPage = options.per || 24;
@@ -226,17 +226,18 @@ function setupArenaSearch() {
     if (searchResults.results.length === 0) {
       searchResultsDiv.innerHTML = `
         <div class="col-span-full p-8 bg-white/60 rounded-2xl border border-stone-200/50 text-center text-stone-500">
-          <div class="text-2xl mb-2">¯\\_(ツ)_/¯</div>
+          <div class="text-2xl mb-2">¯\\\\_(ツ)_/¯</div>
           <p class="text-sm">no results found</p>
         </div>
       `;
     } else {
       // Render grouped results
-      Object.entries(groupedResults).forEach(([sourceUrl, results]) => {
+      Object.entries(groupedResults).forEach(([sourceUrlKey, results]) => {
         const groupDiv = document.createElement('div');
         groupDiv.className = 'result-group bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-stone-200/50 hover:bg-white/90 transition-all';
         
-        const content = renderGroupedResult(sourceUrl, results);
+        // Pass results directly, connections are now part of each result item
+        const content = renderGroupedResult(sourceUrlKey, results);
         groupDiv.innerHTML = content;
         searchResultsDiv.appendChild(groupDiv);
       });
@@ -244,6 +245,23 @@ function setupArenaSearch() {
 
     resultsDiv.classList.remove('hidden');
     resultsDiv.classList.add('fade-in');
+  }
+
+  function normalizeUrl(url: string): string {
+    if (!url) return '';
+    try {
+      const urlObj = new URL(url.startsWith('http') ? url : `http://${url}`);
+      let pathname = urlObj.pathname;
+      // Remove trailing slash if not the root path
+      if (pathname.length > 1 && pathname.endsWith('/')) {
+        pathname = pathname.slice(0, -1);
+      }
+      // Consistent protocol, remove www, sort query params (optional, can be complex)
+      return `${urlObj.hostname.replace(/^www\\./, '')}${pathname}`;
+    } catch (e) {
+      // Fallback for invalid URLs or non-HTTP URLs
+      return url.replace(/\/$/, ''); // Simple trailing slash removal
+    }
   }
 
   function groupResultsByUrl(results: any[]): { [key: string]: any[] } {
@@ -256,8 +274,9 @@ function setupArenaSearch() {
         // Channels are their own group
         key = `channel:${result.id}`;
       } else {
-        // Group blocks by their source URL, or fallback to block type
-        key = result.source?.url || result.source_url || `${result.__typename}:${result.id}`;
+        // Group blocks by their normalized source URL
+        const rawUrl = result.source_url || result.source?.url;
+        key = normalizeUrl(rawUrl) || `${result.__typename}:${result.id}`; // Fallback if no URL
       }
       
       if (!groups[key]) {
@@ -269,13 +288,13 @@ function setupArenaSearch() {
     return groups;
   }
 
-  function renderGroupedResult(sourceKey: string, results: any[]): string {
+  function renderGroupedResult(sourceKey: string, results: any[], connectionsData?: Map<string, any>): string {
     const firstResult = results[0];
     const isChannel = firstResult.__typename === 'Channel';
-    const isMultiple = results.length > 1;
+    const isMultipleBlocksWithSameSource = results.length > 1 && !isChannel;
     
     if (isChannel) {
-      // Render channel normally
+      // Render channel normally (no direct connections to display in this view)
       return `
         <div class="space-y-4">
           <div class="flex items-center gap-2">
@@ -305,9 +324,19 @@ function setupArenaSearch() {
     } else {
       // Render grouped blocks
       const sourceUrl = firstResult.source?.url || firstResult.source_url;
+      const displayUrl = normalizeUrl(sourceUrl); // Use normalized URL for display consistency
       const blockTypes = [...new Set(results.map(r => r.__typename))];
+      // Titles are less relevant now we group by URL, but keep for potential future use or if sourceUrl is missing
       const titles = results.filter(r => r.title).map(r => r.title);
-      const uniqueTitles = [...new Set(titles)]; // Remove duplicates
+      const uniqueTitles = [...new Set(titles)];
+
+      // Consolidate all connections from all blocks in this group
+      const allConnections: any[] = [];
+      results.forEach(result => {
+        if (result.connections && Array.isArray(result.connections)) {
+          allConnections.push(...result.connections);
+        }
+      });
       
       return `
         <div class="space-y-4">
@@ -318,19 +347,19 @@ function setupArenaSearch() {
                   ${type.toLowerCase()}
                 </span>
               `).join('')}
-              ${isMultiple ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-xl text-sm font-medium">${results.length} blocks</span>` : ''}
+              ${isMultipleBlocksWithSameSource ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-xl text-sm font-medium">${results.length} blocks</span>` : ''}
             </div>
           </div>
           
-          ${sourceUrl ? `
+          ${displayUrl ? `
             <div>
               <h3 class="font-bold text-stone-800 leading-tight text-lg mb-2">
                 <a href="${sourceUrl}" target="_blank" 
                    class="text-stone-800 hover:text-orange-600 transition-colors break-all hover:underline">
-                  ${sourceUrl.length > 60 ? sourceUrl.substring(0, 60) + '...' : sourceUrl}
+                  ${displayUrl.length > 60 ? displayUrl.substring(0, 60) + '...' : displayUrl}
                 </a>
               </h3>
-              ${sourceUrl.length > 60 ? `<p class="text-xs text-stone-500 font-mono break-all">${sourceUrl}</p>` : ''}
+              ${displayUrl.length > 60 ? `<p class="text-xs text-stone-500 font-mono break-all">${sourceUrl}</p>` : ''}
             </div>
           ` : `
             <h3 class="font-bold text-stone-800 leading-tight text-lg">
@@ -338,7 +367,7 @@ function setupArenaSearch() {
             </h3>
           `}
           
-          ${uniqueTitles.length > 0 ? `
+          ${uniqueTitles.length > 0 && !displayUrl /* Only show titles if no source URL to group by */ ? `
             <div class="bg-stone-50 rounded-xl p-4 space-y-2">
               <p class="text-xs text-stone-500 font-medium uppercase tracking-wide">Content Preview</p>
               ${uniqueTitles.slice(0, 2).map(title => `
@@ -348,26 +377,172 @@ function setupArenaSearch() {
             </div>
           ` : ''}
           
+          ${renderConnectionsForGroup(allConnections)}
+          
           <div class="flex items-center justify-between pt-2 border-t border-stone-100">
             <div class="flex-1 mr-4">
               <div class="flex gap-2 flex-wrap max-w-full">
-                ${results.slice(0, 12).map(result => `
-                  <a href="https://are.na/block/${result.id}" target="_blank" 
-                     class="text-xs text-stone-400 hover:text-orange-600 transition-colors font-mono whitespace-nowrap">
-                    #${result.id}
-                  </a>
-                `).join('')}
+                ${results.slice(0, 12).map(result => {
+                  if (result.__typename === 'Link' && result.href) {
+                    const blockId = result.href.split('/').pop();
+                    return `
+                      <a href="https://are.na${result.href}" target="_blank"
+                         class="text-xs text-stone-400 hover:text-orange-600 transition-colors font-mono whitespace-nowrap">
+                        #${blockId}
+                      </a>`;
+                  }
+                  return ''; // Skip if not a Link or no href
+                }).join('')}
                 ${results.length > 12 ? `<span class="text-xs text-stone-300 whitespace-nowrap">+${results.length - 12} more</span>` : ''}
               </div>
             </div>
-            <a href="https://are.na/block/${firstResult.id}" target="_blank" 
+            <a href="${(firstResult.__typename === 'Link' && firstResult.href) ? `https://are.na${firstResult.href}` : '#'}" target="_blank"
                class="text-sm text-orange-600 hover:text-orange-700 transition-colors font-medium whitespace-nowrap flex-shrink-0">
-               ${isMultiple ? 'view all →' : 'view block →'}
+               ${isMultipleBlocksWithSameSource ? 'view all on Are.na →' : 'view block →'}
             </a>
           </div>
         </div>
       `;
     }
+  }
+
+  function renderConnectionsMetadata(results: any[], connectionsData: Map<string, any>): string {
+    const allConnections: any[] = [];
+    
+    // Collect all connections from all blocks in this group
+    results.forEach(result => {
+      const blockConnections = connectionsData.get(result.id);
+      if (blockConnections) {
+        // Add both own and public connections
+        if (blockConnections.my_connections) {
+          allConnections.push(...blockConnections.my_connections.map((conn: any) => ({ ...conn, isOwn: true })));
+        }
+        if (blockConnections.public_connections) {
+          allConnections.push(...blockConnections.public_connections.map((conn: any) => ({ ...conn, isOwn: false })));
+        }
+      }
+    });
+
+    if (allConnections.length === 0) {
+      return `
+        <div class="bg-stone-50 rounded-xl p-3 mt-3">
+          <p class="text-xs text-stone-500 font-medium uppercase tracking-wide mb-1">Connections</p>
+          <p class="text-sm text-stone-400">No channels found</p>
+        </div>
+      `;
+    }
+
+    // Group connections by channel to avoid duplicates
+    const channelMap = new Map();
+    allConnections.forEach(conn => {
+      const channelId = conn.channel.id;
+      if (!channelMap.has(channelId)) {
+        channelMap.set(channelId, conn);
+      }
+    });
+
+    const uniqueConnections = Array.from(channelMap.values());
+    const maxToShow = 8;
+    const connectionsToShow = uniqueConnections.slice(0, maxToShow);
+    const remainingCount = uniqueConnections.length - maxToShow;
+
+    return `
+      <div class="bg-stone-50 rounded-xl p-3 mt-3">
+        <p class="text-xs text-stone-500 font-medium uppercase tracking-wide mb-2">Connected to ${uniqueConnections.length} channel${uniqueConnections.length !== 1 ? 's' : ''}</p>
+        <div class="space-y-2">
+          ${connectionsToShow.map(conn => `
+            <div class="flex items-center justify-between text-sm">
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <a href="https://are.na${conn.channel.href}" target="_blank" 
+                   class="font-medium text-stone-700 hover:text-orange-600 transition-colors truncate">
+                  ${conn.channel.title || 'untitled'}
+                </a>
+                <span class="text-xs px-2 py-0.5 rounded bg-stone-200 text-stone-600 flex-shrink-0">
+                  ${conn.channel.visibility_name?.toLowerCase() || 'unknown'}
+                </span>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-stone-400 flex-shrink-0">
+                ${conn.channel.counts?.contents ? `<span>${conn.channel.counts.contents}</span>` : ''}
+                <span>${conn.created_at}</span>
+              </div>
+            </div>
+          `).join('')}
+          ${remainingCount > 0 ? `
+            <div class="text-xs text-stone-400 pt-1 border-t border-stone-200">
+              + ${remainingCount} more channel${remainingCount !== 1 ? 's' : ''}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderConnectionsForGroup(connections: any[]): string {
+    if (!connections || connections.length === 0) {
+      return `
+        <div class="bg-stone-50 rounded-xl p-3 mt-3">
+          <p class="text-xs text-stone-500 font-medium uppercase tracking-wide mb-1">Connections</p>
+          <p class="text-sm text-stone-400">No channels found for this link.</p>
+        </div>
+      `;
+    }
+
+    // Deduplicate connections by user + channel slug combination to show unique "saves"
+    const uniqueConnectionsMap = new Map<string, any>();
+    connections.forEach(conn => {
+      if (conn.user && conn.channel) {
+        const key = `${conn.user.slug}-${conn.channel.slug}`;
+        if (!uniqueConnectionsMap.has(key)) {
+          uniqueConnectionsMap.set(key, conn);
+        }
+      }
+    });
+
+    const uniqueConnections = Array.from(uniqueConnectionsMap.values());
+    
+    // Sort connections by date added (newest first)
+    uniqueConnections.sort((a, b) => {
+      const dateA = new Date(a.channel.added_to_at).getTime();
+      const dateB = new Date(b.channel.added_to_at).getTime();
+      return dateB - dateA;
+    });
+
+    const maxToShow = 10;
+    const connectionsToShow = uniqueConnections.slice(0, maxToShow);
+    const remainingCount = uniqueConnections.length - maxToShow;
+
+    return `
+      <div class="bg-stone-50 rounded-xl p-4 mt-3 space-y-3">
+        <p class="text-xs text-stone-500 font-medium uppercase tracking-wide">
+          Connected by ${uniqueConnections.length} user${uniqueConnections.length !== 1 ? 's' : ''} to ${uniqueConnections.length} channel${uniqueConnections.length !== 1 ? 's' : ''}
+        </p>
+        <div class="space-y-2">
+          ${connectionsToShow.map(conn => `
+            <div class="flex items-start justify-between text-sm gap-2">
+              <div class="flex-1 min-w-0">
+                <a href="https://are.na/channel/${conn.channel.slug}" target="_blank" 
+                   class="font-medium text-stone-700 hover:text-orange-600 transition-colors">
+                  ${conn.channel.title || 'untitled'}
+                </a>
+                <div class="text-xs text-stone-500">
+                  Added by 
+                  <a href="https://are.na/${conn.user.slug}" target="_blank" class="hover:text-orange-500">${conn.user.name}</a>
+                  on ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded bg-stone-200 text-stone-600 flex-shrink-0 whitespace-nowrap">
+                ${conn.channel.visibility_name?.toLowerCase() || 'public'} 
+              </span>
+            </div>
+          `).join('')}
+          ${remainingCount > 0 ? `
+            <div class="text-xs text-stone-400 pt-2 border-t border-stone-200 mt-2">
+              + ${remainingCount} more connection${remainingCount !== 1 ? 's' : ''}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
   }
 
   function showPagination(total: number, currentPage: number, perPage: number) {
