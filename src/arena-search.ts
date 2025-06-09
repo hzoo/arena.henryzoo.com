@@ -124,10 +124,27 @@ function setupArenaSearch() {
   }
 
   async function performSearch() {
-    const url = urlInput.value.trim();
-    if (!url) {
+    const urlInputVal = urlInput.value.trim();
+    if (!urlInputVal) {
       showError('Please enter a URL to search for');
       return;
+    }
+
+    let url = urlInputVal;
+    if (url.startsWith('https://')) {
+      url = url.substring('https://'.length);
+    } else if (url.startsWith('http://')) {
+      url = url.substring('http://'.length);
+    }
+
+    // Remove www.
+    if (url.startsWith('www.')) {
+      url = url.substring('www.'.length);
+    }
+
+    // Remove trailing slash
+    if (url.endsWith('/')) {
+      url = url.slice(0, -1);
     }
 
     showLoading(true);
@@ -260,7 +277,23 @@ function setupArenaSearch() {
       return `${urlObj.hostname.replace(/^www\\./, '')}${pathname}`;
     } catch (e) {
       // Fallback for invalid URLs or non-HTTP URLs
-      return url.replace(/\/$/, ''); // Simple trailing slash removal
+      let fallback = url;
+      
+      // Attempt to remove www. prefix
+      // Check for http://www. or https://www. first
+      if (fallback.toLowerCase().startsWith('http://www.')) {
+        fallback = 'http://' + fallback.substring('http://www.'.length);
+      } else if (fallback.toLowerCase().startsWith('https://www.')) {
+        fallback = 'https://' + fallback.substring('https://www.'.length);
+      } else if (fallback.toLowerCase().startsWith('www.')) { // Then check for just www.
+        fallback = fallback.substring('www.'.length);
+      }
+      
+      // Remove trailing slash
+      if (fallback.endsWith('/')) {
+        fallback = fallback.slice(0, -1);
+      }
+      return fallback;
     }
   }
 
@@ -396,10 +429,6 @@ function setupArenaSearch() {
                 ${results.length > 12 ? `<span class="text-xs text-stone-300 whitespace-nowrap">+${results.length - 12} more</span>` : ''}
               </div>
             </div>
-            <a href="${(firstResult.__typename === 'Link' && firstResult.href) ? `https://are.na${firstResult.href}` : '#'}" target="_blank"
-               class="text-sm text-orange-600 hover:text-orange-700 transition-colors font-medium whitespace-nowrap flex-shrink-0">
-               ${isMultipleBlocksWithSameSource ? 'view all on Are.na →' : 'view block →'}
-            </a>
           </div>
         </div>
       `;
@@ -525,9 +554,8 @@ function setupArenaSearch() {
                   ${conn.channel.title || 'untitled'}
                 </a>
                 <div class="text-xs text-stone-500">
-                  Added by 
                   <a href="https://are.na/${conn.user.slug}" target="_blank" class="hover:text-orange-500">${conn.user.name}</a>
-                  on ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  • ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                 </div>
               </div>
               <span class="text-xs px-2 py-0.5 rounded bg-stone-200 text-stone-600 flex-shrink-0 whitespace-nowrap">

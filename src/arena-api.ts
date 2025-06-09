@@ -1,10 +1,11 @@
 // Arena API GraphQL queries - using the full query structure from are.na
 const SEARCH_RESULTS_QUERY = `
-query LinkMentions($url: String!, $per: Int, $page: Int) {
+query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: Int) {
   searches {
     advanced(
       term: { facet: $url }
       fields: { facets: URL }
+      order: { facet: SCORE, dir: DESC },
       per: $per
       page: $page
     ) {
@@ -13,7 +14,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int) {
         ... on Link {
           source_url
           href
-          connections(filter: EXCLUDE_OWN, per: $per) { # Assuming 'per' here is for connections pagination
+          connections(filter: EXCLUDE_OWN, per: $connectionsPerBlock, page: 1) {
             user {
               name
               slug
@@ -30,6 +31,30 @@ query LinkMentions($url: String!, $per: Int, $page: Int) {
       __typename
     }
     __typename
+  }
+}
+`;
+
+const BLOCK_ALL_CONNECTIONS_QUERY = `
+query BlockAllConnections($blockId: ID!, $per: Int) {
+  block(id: $blockId) {
+    __typename
+    ... on Konnectable {
+      id
+      connections(per: $per, page: 1, filter: EXCLUDE_OWN) {
+        # We assume no explicit totalCount or pagination info is returned here based on prior examples,
+        # so we'll fetch a large 'per' value and get all on page 1.
+        user {
+          name
+          slug
+        }
+        channel {
+          title
+          slug
+          added_to_at
+        }
+      }
+    }
   }
 }
 `;
@@ -144,18 +169,18 @@ export async function getArenaSearchResults(url: string, options?: {
   appToken?: string, 
   authToken?: string,
   page?: number,
-  per?: number 
+  per?: number,
+  connectionsPerBlock?: number // Added new option
 }): Promise<{
   total: number;
-  results: SearchResult[]; // Updated to use the modified SearchResult type
+  results: SearchResult[]; 
 }> {
   try {
-    // The searchBlocksForUrl function now directly uses the simplified query
-    // so we can call arena directly with SEARCH_RESULTS_QUERY
     const variables = {
-      url: url, // The query expects 'url' not 'term: { facet: url }'
+      url: url, 
       page: options?.page || 1,
-      per: options?.per || 24
+      per: options?.per || 25,
+      connectionsPerBlock: options?.connectionsPerBlock || 50 // Default to 50 connections
     };
 
     const result = await arena<any>(SEARCH_RESULTS_QUERY, variables, options);
@@ -166,6 +191,31 @@ export async function getArenaSearchResults(url: string, options?: {
     };
   } catch (error) {
     console.error('Error getting Arena search results:', error);
+    throw error;
+  }
+}
+
+// New function to get all connections for a single block
+export async function getBlockAllConnections(blockHref: string, queryOptions?: { 
+  appToken?: string, 
+  authToken?: string,
+  per?: number
+}): Promise<any> { // Adjust 'any' to a more specific type if block structure is well-defined
+  try {
+    const blockId = blockHref.split('/').pop();
+    if (!blockId) {
+      throw new Error('Invalid blockHref, could not extract block ID');
+    }
+
+    const variables = {
+      blockId: blockId,
+      per: queryOptions?.per || 500 // Fetch up to 500 connections by default
+    };
+
+    const result = await arena<any>(BLOCK_ALL_CONNECTIONS_QUERY, variables, queryOptions);
+    return result.block; // This would contain the connections array
+  } catch (error) {
+    console.error(`Error fetching all connections for block ${blockHref}:`, error);
     throw error;
   }
 }
