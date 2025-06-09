@@ -31,10 +31,45 @@ function setupArenaSearch() {
   loadSavedTokens();
 
   // Set default URL
-  urlInput.value = 'ciechanow.ski/gps';
+  urlInput.value = 'henryzoo.com';
 
   // Update auth button appearance based on token
   updateAuthButtonState();
+
+  // Attempt to auto-search if cached results for default URL exist
+  const defaultUrl = urlInput.value.trim();
+  if (defaultUrl) {
+    const defaultPage = parseInt(pageInput.value) || 1;
+    const defaultPerPage = parseInt(perPageInput.value) || 24;
+    // Normalize the default URL in the same way performSearch does before creating cache key
+    let normalizedDefaultUrl = defaultUrl;
+    if (normalizedDefaultUrl.startsWith('https://')) {
+      normalizedDefaultUrl = normalizedDefaultUrl.substring('https://'.length);
+    } else if (normalizedDefaultUrl.startsWith('http://')) {
+      normalizedDefaultUrl = normalizedDefaultUrl.substring('http://'.length);
+    }
+    if (normalizedDefaultUrl.startsWith('www.')) {
+      normalizedDefaultUrl = normalizedDefaultUrl.substring('www.'.length);
+    }
+    if (normalizedDefaultUrl.endsWith('/')) {
+      normalizedDefaultUrl = normalizedDefaultUrl.slice(0, -1);
+    }
+
+    const cacheKey = `arena_search_cache_${normalizedDefaultUrl}_${defaultPage}_${defaultPerPage}`;
+    const cacheDuration = 60 * 1000 * 60 * 24;
+    try {
+      const cachedItem = localStorage.getItem(cacheKey);
+      if (cachedItem) {
+        const { timestamp } = JSON.parse(cachedItem);
+        if (Date.now() - timestamp < cacheDuration) {
+          console.log('Cached results found for default URL, auto-searching:', defaultUrl);
+          performSearch(); // Call performSearch, it will use the cache
+        }
+      }
+    } catch (e) {
+      console.warn('Error checking cache for auto-search:', e);
+    }
+  }
 
   // Save auth token to localStorage when it changes
   authTokenInput.addEventListener('input', () => {

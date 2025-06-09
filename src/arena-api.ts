@@ -165,16 +165,36 @@ export async function searchBlocksForUrl(url: string, options?: {
 }
 
 // Simplified function that just returns search results (no placements)
-export async function getArenaSearchResults(url: string, options?: { 
-  appToken?: string, 
+export async function getArenaSearchResults(url: string, options?: {
+  appToken?: string,
   authToken?: string,
   page?: number,
   per?: number,
   connectionsPerBlock?: number // Added new option
 }): Promise<{
   total: number;
-  results: SearchResult[]; 
+  results: SearchResult[];
 }> {
+  const cacheKey = `arena_search_cache_${url}_${options?.page || 1}_${options?.per || 25}`;
+  const cacheDuration = 60 * 1000;
+
+  try {
+    const cachedItem = localStorage.getItem(cacheKey);
+    if (cachedItem) {
+      const { timestamp, data } = JSON.parse(cachedItem);
+      if (Date.now() - timestamp < cacheDuration) {
+        console.log('Returning cached results for:', url, options);
+        return data;
+      } else {
+        // Cache expired
+        localStorage.removeItem(cacheKey);
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading from cache:', e);
+    // Proceed to fetch if cache read fails
+  }
+
   try {
     const variables = {
       url: url, 
@@ -184,11 +204,19 @@ export async function getArenaSearchResults(url: string, options?: {
     };
 
     const result = await arena<any>(SEARCH_RESULTS_QUERY, variables, options);
-    
-    return {
+
+    const responseData = {
       total: result.searches.advanced.total || 0,
       results: result.searches.advanced.results || []
     };
+
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: responseData }));
+    } catch (e) {
+      console.warn('Error saving to cache:', e);
+    }
+
+    return responseData;
   } catch (error) {
     console.error('Error getting Arena search results:', error);
     throw error;
