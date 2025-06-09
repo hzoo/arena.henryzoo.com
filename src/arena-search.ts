@@ -29,45 +29,63 @@ function setupArenaSearch() {
 
   // Load saved auth token from localStorage
   loadSavedTokens();
-
-  // Set default URL
-  urlInput.value = 'henryzoo.com';
-
-  // Update auth button appearance based on token
+  // Update auth button appearance based on token state
   updateAuthButtonState();
 
-  // Attempt to auto-search if cached results for default URL exist
-  const defaultUrl = urlInput.value.trim();
-  if (defaultUrl) {
-    const defaultPage = parseInt(pageInput.value) || 1;
-    const defaultPerPage = parseInt(perPageInput.value) || 24;
-    // Normalize the default URL in the same way performSearch does before creating cache key
-    let normalizedDefaultUrl = defaultUrl;
-    if (normalizedDefaultUrl.startsWith('https://')) {
-      normalizedDefaultUrl = normalizedDefaultUrl.substring('https://'.length);
-    } else if (normalizedDefaultUrl.startsWith('http://')) {
-      normalizedDefaultUrl = normalizedDefaultUrl.substring('http://'.length);
-    }
-    if (normalizedDefaultUrl.startsWith('www.')) {
-      normalizedDefaultUrl = normalizedDefaultUrl.substring('www.'.length);
-    }
-    if (normalizedDefaultUrl.endsWith('/')) {
-      normalizedDefaultUrl = normalizedDefaultUrl.slice(0, -1);
-    }
+  const pathName = window.location.pathname;
+  let initialUrlFromPath = '';
 
-    const cacheKey = `arena_search_cache_${normalizedDefaultUrl}_${defaultPage}_${defaultPerPage}`;
-    const cacheDuration = 60 * 1000 * 60 * 24;
-    try {
-      const cachedItem = localStorage.getItem(cacheKey);
-      if (cachedItem) {
-        const { timestamp } = JSON.parse(cachedItem);
-        if (Date.now() - timestamp < cacheDuration) {
-          console.log('Cached results found for default URL, auto-searching:', defaultUrl);
-          performSearch(); // Call performSearch, it will use the cache
-        }
+  if (pathName && pathName !== '/' && pathName.length > 1) {
+    // Extract search term from path, removing leading '/' and decoding
+    initialUrlFromPath = decodeURIComponent(pathName.substring(1));
+  }
+
+  if (initialUrlFromPath) {
+    urlInput.value = initialUrlFromPath;
+    console.log(`URL from path: "${initialUrlFromPath}", performing initial search.`);
+    performSearch(); // Perform search with the URL from the path
+  } else {
+    // No URL from path, set default URL and check cache for it
+    urlInput.value = 'henryzoo.com'; // Default URL
+
+    // Attempt to auto-search if cached results for the default URL exist
+    const defaultUrlForCacheCheck = urlInput.value.trim();
+    if (defaultUrlForCacheCheck) {
+      const defaultPage = parseInt(pageInput.value) || 1;
+      const defaultPerPage = parseInt(perPageInput.value) || 24;
+
+      // Normalize the default URL for cache key consistency
+      let normalizedDefaultUrl = defaultUrlForCacheCheck;
+      if (normalizedDefaultUrl.startsWith('https://')) {
+        normalizedDefaultUrl = normalizedDefaultUrl.substring('https://'.length);
+      } else if (normalizedDefaultUrl.startsWith('http://')) {
+        normalizedDefaultUrl = normalizedDefaultUrl.substring('http://'.length);
       }
-    } catch (e) {
-      console.warn('Error checking cache for auto-search:', e);
+      if (normalizedDefaultUrl.startsWith('www.')) {
+        normalizedDefaultUrl = normalizedDefaultUrl.substring('www.'.length);
+      }
+      if (normalizedDefaultUrl.endsWith('/')) {
+        normalizedDefaultUrl = normalizedDefaultUrl.slice(0, -1);
+      }
+
+      const cacheKey = `arena_search_cache_${normalizedDefaultUrl}_${defaultPage}_${defaultPerPage}`;
+      const cacheDuration = 60 * 1000; // 1 minute, consistent with getArenaSearchResults
+
+      try {
+        const cachedItemJSON = localStorage.getItem(cacheKey);
+        if (cachedItemJSON) {
+          const { timestamp, data } = JSON.parse(cachedItemJSON);
+          if (Date.now() - timestamp < cacheDuration) {
+            console.log('Valid cached results found for default URL, attempting auto-search.');
+            performSearch();
+          } else {
+            console.log('Cached results for default URL are stale, removing.');
+            localStorage.removeItem(cacheKey); // Clean up stale cache
+          }
+        }
+      } catch (e) {
+        console.warn('Error checking cache for auto-search:', e);
+      }
     }
   }
 
