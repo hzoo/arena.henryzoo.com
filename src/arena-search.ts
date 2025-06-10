@@ -504,7 +504,7 @@ function setupArenaSearch() {
             <div class="flex items-start justify-between text-sm gap-2">
               <div class="flex-1 min-w-0">
                 <a href="https://are.na/channel/${conn.channel.slug}" target="_blank" 
-                   class="font-medium text-stone-700 hover:text-orange-600 transition-colors">
+                   class="font-medium text-stone-700 ${getVisibilityClasses(conn.channel.visibility_name)} transition-colors">
                   ${conn.channel.title || 'untitled'}
                 </a>
                 <div class="text-xs text-stone-500">
@@ -512,9 +512,6 @@ function setupArenaSearch() {
                   • ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                 </div>
               </div>
-              <span class="text-xs px-2 py-0.5 rounded flex-shrink-0 whitespace-nowrap ${getVisibilityClasses(conn.channel.visibility_name)}">
-                ${conn.channel.visibility_name?.toLowerCase() || 'public'} 
-              </span>
             </div>
           `).join('')}
         </div>
@@ -595,12 +592,12 @@ function setupArenaSearch() {
     const visibility = visibilityName?.toUpperCase();
     switch (visibility) {
       case 'PUBLIC':
-        return 'bg-green-100 text-green-700';
+        return 'bg-green-100 text-green-700 hover:bg-green-200';
       case 'PRIVATE':
-        return 'bg-red-100 text-red-700';
-      case 'CLOSED': // Are.na uses "closed" for channels not open to public, similar to private for blocks
-        return 'bg-stone-200 text-stone-700'; // Neutral, less prominent than private red
-      default: // Includes 'UNLISTED' or undefined
+        return 'bg-red-100 text-red-700 hover:bg-red-200';
+      case 'CLOSED':
+        return 'text-stone-700 hover:bg-stone-200';
+      default:
         return 'bg-stone-100 text-stone-600'; // Default neutral
     }
   }
