@@ -291,7 +291,7 @@ function setupArenaSearch() {
         const groupDiv = document.createElement('div');
         // Ensure a unique ID for each group if needed for direct manipulation later, though not strictly necessary for current logic
         // groupDiv.id = `group-${sourceUrlKey.replace(/[^a-zA-Z0-9]/g, '-')}`; 
-        groupDiv.className = 'result-group bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-stone-200/50 hover:bg-white/90 transition-all';
+        groupDiv.className = 'result-group bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-stone-200/50 hover:bg-white/90 transition-all';
         
         // Pass results directly, connections are now part of each result item
         const content = renderGroupedResult(sourceUrlKey, results);
@@ -443,20 +443,19 @@ function setupArenaSearch() {
           `}
           
           <div class="flex items-center justify-between pt-2 border-t border-stone-100 mt-3">
-            <div class="flex-1 mr-4">
-              <div class="flex gap-2 flex-wrap max-w-full">
-                ${results.slice(0, 12).map(result => {
-                  if (result.__typename === 'Link' && result.href) {
+            <div class="flex-1 mr-4 overflow-x-auto no-scrollbar">
+              <div class="flex gap-2 flex-nowrap py-1">
+                ${results.map(result => {
+                  if (result.href) {
                     const blockId = result.href.split('/').pop();
                     return `
                       <a href="https://are.na${result.href}" target="_blank"
-                         class="text-xs text-stone-400 hover:text-orange-600 transition-colors font-mono whitespace-nowrap">
+                         class="text-xs text-stone-400 hover:text-orange-600 transition-colors font-mono whitespace-nowrap flex-shrink-0">
                         #${blockId}
                       </a>`;
                   }
-                  return ''; // Skip if not a Link or no href
+                  return ''; // Skip if not a suitable block type or no href
                 }).join('')}
-                ${results.length > 12 ? `<span class="text-xs text-stone-300 whitespace-nowrap">+${results.length - 12} more</span>` : ''}
               </div>
             </div>
           </div>
@@ -497,9 +496,9 @@ function setupArenaSearch() {
 
     return `
       <div id="connections-for-${blockIdSuffix}" class="bg-stone-50 rounded-xl p-4 mt-3 space-y-3">
-        <p class="text-xs text-stone-500 font-medium uppercase tracking-wide">
-          Connected by ${uniqueConnections.length} user${uniqueConnections.length !== 1 ? 's' : ''} to ${uniqueConnections.length} channel${uniqueConnections.length !== 1 ? 's' : ''}
-        </p>
+        <h4 class="text-stone-700 mb-2">
+          Connections <span class="text-xs text-stone-400">(${uniqueConnections.length})</span>
+        </h4>
         <div class="space-y-2 max-h-60 overflow-y-auto">
           ${uniqueConnections.map(conn => `
             <div class="flex items-start justify-between text-sm gap-2">

@@ -96,6 +96,16 @@ input:focus, select:focus, button:focus {
   @apply bg-orange-200 text-stone-800;
 }
 
+/* Utility to hide scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 /* Subtle shadows and glows */
 .glass-card {
   box-shadow: 
