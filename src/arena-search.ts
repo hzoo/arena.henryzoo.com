@@ -308,11 +308,11 @@ function setupArenaSearch() {
       const urlObj = new URL(url.startsWith('http') ? url : `http://${url}`);
       let pathname = urlObj.pathname;
       // Remove trailing slash if not the root path
-      if (pathname.length > 1 && pathname.endsWith('/')) {
+      if (pathname.endsWith('/')) {
         pathname = pathname.slice(0, -1);
       }
       // Consistent protocol, remove www, sort query params (optional, can be complex)
-      return `${urlObj.hostname.replace(/^www\\./, '')}${pathname}`;
+      return `${urlObj.hostname.replace(/^www./, '')}${pathname}`;
     } catch (e) {
       // Fallback for invalid URLs or non-HTTP URLs
       let fallback = url;
@@ -411,6 +411,19 @@ function setupArenaSearch() {
       
       return `
         <div class="space-y-4">
+          ${displayUrl ? `
+            <h3 class="font-bold text-stone-800 leading-tight text-lg mb-2">
+              <a href="${sourceUrl}" target="_blank" 
+                  class="text-stone-800 hover:text-orange-600 transition-colors break-all hover:underline">
+                ${uniqueTitles.length > 0 ? uniqueTitles[0] : 'untitled block'}
+              </a>
+            </h3>
+          ` : `
+            <h3 class="font-bold text-stone-800 leading-tight text-lg">
+              ${blockTypes.join(', ').toLowerCase()} blocks
+            </h3>
+          `}
+
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-2 flex-wrap">
               ${blockTypes.map(type => `
@@ -419,34 +432,9 @@ function setupArenaSearch() {
                 </span>
               `).join('')}
               ${isMultipleBlocksWithSameSource ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-xl text-sm font-medium">${results.length} blocks</span>` : ''}
+              <code class="bg-stone-100 px-2 py-1 rounded text-xs break-all font-mono">${displayUrl}</code>
             </div>
           </div>
-          
-          ${displayUrl ? `
-            <div>
-              <h3 class="font-bold text-stone-800 leading-tight text-lg mb-2">
-                <a href="${sourceUrl}" target="_blank" 
-                   class="text-stone-800 hover:text-orange-600 transition-colors break-all hover:underline">
-                  ${displayUrl.length > 60 ? displayUrl.substring(0, 60) + '...' : displayUrl}
-                </a>
-              </h3>
-              ${displayUrl.length > 60 ? `<p class="text-xs text-stone-500 font-mono break-all">${sourceUrl}</p>` : ''}
-            </div>
-          ` : `
-            <h3 class="font-bold text-stone-800 leading-tight text-lg">
-              ${blockTypes.join(', ').toLowerCase()} blocks
-            </h3>
-          `}
-          
-          ${uniqueTitles.length > 0 && !displayUrl /* Only show titles if no source URL to group by */ ? `
-            <div class="bg-stone-50 rounded-xl p-4 space-y-2">
-              <p class="text-xs text-stone-500 font-medium uppercase tracking-wide">Content Preview</p>
-              ${uniqueTitles.slice(0, 2).map(title => `
-                <div class="text-sm text-stone-700 leading-relaxed font-medium">"${title}"</div>
-              `).join('')}
-              ${uniqueTitles.length > 2 ? `<div class="text-xs text-stone-400">... and ${uniqueTitles.length - 2} more variations</div>` : ''}
-            </div>
-          ` : ''}
           
           ${renderConnectionsForGroup(allConnections)}
           
@@ -471,77 +459,6 @@ function setupArenaSearch() {
         </div>
       `;
     }
-  }
-
-  function renderConnectionsMetadata(results: any[], connectionsData: Map<string, any>): string {
-    const allConnections: any[] = [];
-    
-    // Collect all connections from all blocks in this group
-    results.forEach(result => {
-      const blockConnections = connectionsData.get(result.id);
-      if (blockConnections) {
-        // Add both own and public connections
-        if (blockConnections.my_connections) {
-          allConnections.push(...blockConnections.my_connections.map((conn: any) => ({ ...conn, isOwn: true })));
-        }
-        if (blockConnections.public_connections) {
-          allConnections.push(...blockConnections.public_connections.map((conn: any) => ({ ...conn, isOwn: false })));
-        }
-      }
-    });
-
-    if (allConnections.length === 0) {
-      return `
-        <div class="bg-stone-50 rounded-xl p-3 mt-3">
-          <p class="text-xs text-stone-500 font-medium uppercase tracking-wide mb-1">Connections</p>
-          <p class="text-sm text-stone-400">No channels found</p>
-        </div>
-      `;
-    }
-
-    // Group connections by channel to avoid duplicates
-    const channelMap = new Map();
-    allConnections.forEach(conn => {
-      const channelId = conn.channel.id;
-      if (!channelMap.has(channelId)) {
-        channelMap.set(channelId, conn);
-      }
-    });
-
-    const uniqueConnections = Array.from(channelMap.values());
-    const maxToShow = 8;
-    const connectionsToShow = uniqueConnections.slice(0, maxToShow);
-    const remainingCount = uniqueConnections.length - maxToShow;
-
-    return `
-      <div class="bg-stone-50 rounded-xl p-3 mt-3">
-        <p class="text-xs text-stone-500 font-medium uppercase tracking-wide mb-2">Connected to ${uniqueConnections.length} channel${uniqueConnections.length !== 1 ? 's' : ''}</p>
-        <div class="space-y-2">
-          ${connectionsToShow.map(conn => `
-            <div class="flex items-center justify-between text-sm">
-              <div class="flex items-center gap-2 flex-1 min-w-0">
-                <a href="https://are.na${conn.channel.href}" target="_blank" 
-                   class="font-medium text-stone-700 hover:text-orange-600 transition-colors truncate">
-                  ${conn.channel.title || 'untitled'}
-                </a>
-                <span class="text-xs px-2 py-0.5 rounded bg-stone-200 text-stone-600 flex-shrink-0">
-                  ${conn.channel.visibility_name?.toLowerCase() || 'unknown'}
-                </span>
-              </div>
-              <div class="flex items-center gap-2 text-xs text-stone-400 flex-shrink-0">
-                ${conn.channel.counts?.contents ? `<span>${conn.channel.counts.contents}</span>` : ''}
-                <span>${conn.created_at}</span>
-              </div>
-            </div>
-          `).join('')}
-          ${remainingCount > 0 ? `
-            <div class="text-xs text-stone-400 pt-1 border-t border-stone-200">
-              + ${remainingCount} more channel${remainingCount !== 1 ? 's' : ''}
-            </div>
-          ` : ''}
-        </div>
-      </div>
-    `;
   }
 
   function renderConnectionsForGroup(connections: any[]): string {
@@ -592,7 +509,7 @@ function setupArenaSearch() {
                   ${conn.channel.title || 'untitled'}
                 </a>
                 <div class="text-xs text-stone-500">
-                  <a href="https://are.na/${conn.user.slug}" target="_blank" class="hover:text-orange-500">${conn.user.name}</a>
+                  <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="hover:text-orange-500">${conn.channel.user?.name}</a>
                   • ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                 </div>
               </div>

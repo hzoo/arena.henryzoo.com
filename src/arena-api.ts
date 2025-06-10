@@ -14,12 +14,17 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
         ... on Link {
           source_url
           href
+          title
           connections(filter: EXCLUDE_OWN, per: $connectionsPerBlock, page: 1) {
             user {
               name
               slug
             }
             channel {
+              user {
+                name
+                slug
+              }
               title
               slug
               added_to_at
@@ -64,7 +69,7 @@ interface Channel { // Keep Channel as it's used in the new connections structur
   title: string;
   slug: string;
   added_to_at: string; // Keep as it's part of the new connections structure
-  // Removed fields not present in the new connections structure: id, href, visibility_name, counts, owner
+  user: User; // Channel has a user associated with it
 }
 
 interface User { // Add User interface for the new connections structure
@@ -82,6 +87,7 @@ interface SearchResult { // Keep SearchResult, but update its potential structur
   __typename: string;
   source_url?: string; // from 'Link' type in query
   href?: string;       // from 'Link' type in query
+  title?: string;      // from 'Link' type in query
   connections?: ConnectionInResult[]; // from 'Link' type in query
   // Removed fields not present in the new query: id, title, source
 }
