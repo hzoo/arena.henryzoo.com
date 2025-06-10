@@ -15,7 +15,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
           source_url
           href
           title
-          connections(filter: EXCLUDE_OWN, per: $connectionsPerBlock, page: 1) {
+          connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
             user {
               name
               slug
@@ -28,6 +28,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
               title
               slug
               added_to_at
+              visibility_name
             }
           }
         }
@@ -40,35 +41,12 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
 }
 `;
 
-const BLOCK_ALL_CONNECTIONS_QUERY = `
-query BlockAllConnections($blockId: ID!, $per: Int) {
-  block(id: $blockId) {
-    __typename
-    ... on Konnectable {
-      id
-      connections(per: $per, page: 1, filter: EXCLUDE_OWN) {
-        # We assume no explicit totalCount or pagination info is returned here based on prior examples,
-        # so we'll fetch a large 'per' value and get all on page 1.
-        user {
-          name
-          slug
-        }
-        channel {
-          title
-          slug
-          added_to_at
-        }
-      }
-    }
-  }
-}
-`;
-
 // Types for Arena API responses
 interface Channel { // Keep Channel as it's used in the new connections structure
   title: string;
   slug: string;
   added_to_at: string; // Keep as it's part of the new connections structure
+  visibility_name: 'PUBLIC' | 'CLOSED' | 'PRIVATE';
   user: User; // Channel has a user associated with it
 }
 
@@ -226,31 +204,6 @@ export async function getArenaSearchResults(url: string, options?: {
     return responseData;
   } catch (error) {
     console.error('Error getting Arena search results:', error);
-    throw error;
-  }
-}
-
-// New function to get all connections for a single block
-export async function getBlockAllConnections(blockHref: string, queryOptions?: { 
-  appToken?: string, 
-  authToken?: string,
-  per?: number
-}): Promise<any> { // Adjust 'any' to a more specific type if block structure is well-defined
-  try {
-    const blockId = blockHref.split('/').pop();
-    if (!blockId) {
-      throw new Error('Invalid blockHref, could not extract block ID');
-    }
-
-    const variables = {
-      blockId: blockId,
-      per: queryOptions?.per || 500 // Fetch up to 500 connections by default
-    };
-
-    const result = await arena<any>(BLOCK_ALL_CONNECTIONS_QUERY, variables, queryOptions);
-    return result.block; // This would contain the connections array
-  } catch (error) {
-    console.error(`Error fetching all connections for block ${blockHref}:`, error);
     throw error;
   }
 }

@@ -281,7 +281,7 @@ function setupArenaSearch() {
     if (searchResults.results.length === 0) {
       searchResultsDiv.innerHTML = `
         <div class="col-span-full p-8 bg-white/60 rounded-2xl border border-stone-200/50 text-center text-stone-500">
-          <div class="text-2xl mb-2">¯\\\\_(ツ)_/¯</div>
+          <div class="text-2xl mb-2">¯\\_(ツ)_/¯</div>
           <p class="text-sm">no results found</p>
         </div>
       `;
@@ -289,6 +289,8 @@ function setupArenaSearch() {
       // Render grouped results
       Object.entries(groupedResults).forEach(([sourceUrlKey, results]) => {
         const groupDiv = document.createElement('div');
+        // Ensure a unique ID for each group if needed for direct manipulation later, though not strictly necessary for current logic
+        // groupDiv.id = `group-${sourceUrlKey.replace(/[^a-zA-Z0-9]/g, '-')}`; 
         groupDiv.className = 'result-group bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-stone-200/50 hover:bg-white/90 transition-all';
         
         // Pass results directly, connections are now part of each result item
@@ -363,14 +365,15 @@ function setupArenaSearch() {
     const firstResult = results[0];
     const isChannel = firstResult.__typename === 'Channel';
     const isMultipleBlocksWithSameSource = results.length > 1 && !isChannel;
-    
+    const blockHref = firstResult.href || ''; // Get block href for connections
+
     if (isChannel) {
       // Render channel normally (no direct connections to display in this view)
       return `
         <div class="space-y-4">
           <div class="flex items-center gap-2">
             <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-xl text-sm font-medium">channel</span>
-            ${firstResult.visibility_name ? `<span class="px-2 py-1 bg-stone-100 text-stone-600 rounded-lg text-xs">${firstResult.visibility_name.toLowerCase()}</span>` : ''}
+            ${firstResult.visibility_name ? `<span class="px-2 py-1 rounded-lg text-xs ${getVisibilityClasses(firstResult.visibility_name)}">${firstResult.visibility_name.toLowerCase()}</span>` : ''}
           </div>
           
           <h3 class="font-bold text-stone-800 leading-tight text-lg">
@@ -393,52 +396,53 @@ function setupArenaSearch() {
         </div>
       `;
     } else {
-      // Render grouped blocks
-      const sourceUrl = firstResult.source?.url || firstResult.source_url;
-      const displayUrl = normalizeUrl(sourceUrl); // Use normalized URL for display consistency
-      const blockTypes = [...new Set(results.map(r => r.__typename))];
-      // Titles are less relevant now we group by URL, but keep for potential future use or if sourceUrl is missing
-      const titles = results.filter(r => r.title).map(r => r.title);
-      const uniqueTitles = [...new Set(titles)];
+      // Render a single block or a group of blocks with the same source URL
+      const displayTitle = firstResult.title || (firstResult.source_url ? new URL(firstResult.source_url).hostname : 'Untitled Block');
+      const blockType = firstResult.__typename || 'Block';
+      const typeIcon = getBlockTypeIcon(blockType);
+      const typeColor = getBlockTypeColor(blockType);
 
-      // Consolidate all connections from all blocks in this group
-      const allConnections: any[] = [];
-      results.forEach(result => {
-        if (result.connections && Array.isArray(result.connections)) {
-          allConnections.push(...result.connections);
-        }
-      });
-      
+      // Consolidate connections from all blocks in the group if multiple exist
+      let allGroupConnections: any[] = [];
+      if (isMultipleBlocksWithSameSource) {
+        results.forEach(r => {
+          if (r.connections) {
+            allGroupConnections = allGroupConnections.concat(r.connections);
+          }
+        });
+      } else {
+        allGroupConnections = firstResult.connections || [];
+      }
+
       return `
-        <div class="space-y-4">
-          ${displayUrl ? `
-            <h3 class="font-bold text-stone-800 leading-tight text-lg mb-2">
-              <a href="${sourceUrl}" target="_blank" 
-                  class="text-stone-800 hover:text-orange-600 transition-colors break-all hover:underline">
-                ${uniqueTitles.length > 0 ? uniqueTitles[0] : 'untitled block'}
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-stone-200/70 shadow-sm hover:shadow-md transition-shadow duration-300 ease-in-out relative group">
+          <div class="flex items-start gap-4">
+            <div class="flex-shrink-0 w-12 h-12 ${typeColor} rounded-lg flex items-center justify-center text-2xl">
+              ${typeIcon}
+            </div>
+            <div class="flex-1 min-w-0">
+              <a href="${firstResult.source_url}" target="_blank" 
+                 class="font-semibold text-stone-800 hover:text-orange-600 transition-colors line-clamp-2 leading-tight group-hover:underline"
+                 title="${firstResult.title || sourceKey}">
+                ${displayTitle}
               </a>
-            </h3>
-          ` : `
-            <h3 class="font-bold text-stone-800 leading-tight text-lg">
-              ${blockTypes.join(', ').toLowerCase()} blocks
-            </h3>
-          `}
-
-          <div class="flex items-center justify-between flex-wrap gap-2">
-            <div class="flex items-center gap-2 flex-wrap">
-              ${blockTypes.map(type => `
-                <span class="px-3 py-1 ${getBlockTypeColor(type)} rounded-xl text-sm font-medium">
-                  ${type.toLowerCase()}
-                </span>
-              `).join('')}
-              ${isMultipleBlocksWithSameSource ? `<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-xl text-sm font-medium">${results.length} blocks</span>` : ''}
-              <code class="bg-stone-100 px-2 py-1 rounded text-xs break-all font-mono">${displayUrl}</code>
+              <div class="text-xs text-stone-500 mt-1">
+                <a href="${firstResult.source_url}" target="_blank" class="hover:text-orange-500 truncate">
+                  ${firstResult.source_url ? firstResult.source_url.replace(/^https?:\/\//, '').replace(/^www\./, '') : 'No source URL'}
+                </a>
+              </div>
             </div>
           </div>
           
-          ${renderConnectionsForGroup(allConnections)}
+          ${allGroupConnections && allGroupConnections.length > 0 ? `
+            ${renderConnectionsForGroup(allGroupConnections, blockHref)} 
+          ` : `
+            <div class="mt-3 p-4 bg-stone-50 rounded-xl">
+              <p class="text-xs text-stone-400 italic">no connections found for this item.</p>
+            </div>
+          `}
           
-          <div class="flex items-center justify-between pt-2 border-t border-stone-100">
+          <div class="flex items-center justify-between pt-2 border-t border-stone-100 mt-3">
             <div class="flex-1 mr-4">
               <div class="flex gap-2 flex-wrap max-w-full">
                 ${results.slice(0, 12).map(result => {
@@ -461,21 +465,19 @@ function setupArenaSearch() {
     }
   }
 
-  function renderConnectionsForGroup(connections: any[]): string {
-    if (!connections || connections.length === 0) {
-      return `
-        <div class="bg-stone-50 rounded-xl p-3 mt-3">
-          <p class="text-xs text-stone-500 font-medium uppercase tracking-wide mb-1">Connections</p>
-          <p class="text-sm text-stone-400">No channels found for this link.</p>
-        </div>
-      `;
+  function renderConnectionsForGroup(connections: any[], blockHref?: string): string {
+    // The connections passed should be all available ones from the initial query.
+    const connectionsToRender = connections;
+
+    if (!connectionsToRender || connectionsToRender.length === 0) {
+      return ''; // Return empty string, caller handles the "no connections" message.
     }
 
     // Deduplicate connections by user + channel slug combination to show unique "saves"
     const uniqueConnectionsMap = new Map<string, any>();
-    connections.forEach(conn => {
-      if (conn.user && conn.channel) {
-        const key = `${conn.user.slug}-${conn.channel.slug}`;
+    connectionsToRender.forEach(conn => {
+      if (conn && conn.channel && conn.channel.slug && conn.channel.user && conn.channel.user.slug) {
+        const key = `${conn.channel.user.slug}/${conn.channel.slug}`;
         if (!uniqueConnectionsMap.has(key)) {
           uniqueConnectionsMap.set(key, conn);
         }
@@ -491,17 +493,15 @@ function setupArenaSearch() {
       return dateB - dateA;
     });
 
-    const maxToShow = 10;
-    const connectionsToShow = uniqueConnections.slice(0, maxToShow);
-    const remainingCount = uniqueConnections.length - maxToShow;
+    const blockIdSuffix = blockHref ? blockHref.split('/').pop() : Date.now();
 
     return `
-      <div class="bg-stone-50 rounded-xl p-4 mt-3 space-y-3">
+      <div id="connections-for-${blockIdSuffix}" class="bg-stone-50 rounded-xl p-4 mt-3 space-y-3">
         <p class="text-xs text-stone-500 font-medium uppercase tracking-wide">
           Connected by ${uniqueConnections.length} user${uniqueConnections.length !== 1 ? 's' : ''} to ${uniqueConnections.length} channel${uniqueConnections.length !== 1 ? 's' : ''}
         </p>
-        <div class="space-y-2">
-          ${connectionsToShow.map(conn => `
+        <div class="space-y-2 max-h-60 overflow-y-auto">
+          ${uniqueConnections.map(conn => `
             <div class="flex items-start justify-between text-sm gap-2">
               <div class="flex-1 min-w-0">
                 <a href="https://are.na/channel/${conn.channel.slug}" target="_blank" 
@@ -513,16 +513,11 @@ function setupArenaSearch() {
                   • ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                 </div>
               </div>
-              <span class="text-xs px-2 py-0.5 rounded bg-stone-200 text-stone-600 flex-shrink-0 whitespace-nowrap">
+              <span class="text-xs px-2 py-0.5 rounded flex-shrink-0 whitespace-nowrap ${getVisibilityClasses(conn.channel.visibility_name)}">
                 ${conn.channel.visibility_name?.toLowerCase() || 'public'} 
               </span>
             </div>
           `).join('')}
-          ${remainingCount > 0 ? `
-            <div class="text-xs text-stone-400 pt-2 border-t border-stone-200 mt-2">
-              + ${remainingCount} more connection${remainingCount !== 1 ? 's' : ''}
-            </div>
-          ` : ''}
         </div>
       </div>
     `;
@@ -596,6 +591,20 @@ function setupArenaSearch() {
     pageInput.value = page.toString();
     performSearch();
   };
+
+  function getVisibilityClasses(visibilityName?: string): string {
+    const visibility = visibilityName?.toUpperCase();
+    switch (visibility) {
+      case 'PUBLIC':
+        return 'bg-green-100 text-green-700';
+      case 'PRIVATE':
+        return 'bg-red-100 text-red-700';
+      case 'CLOSED': // Are.na uses "closed" for channels not open to public, similar to private for blocks
+        return 'bg-stone-200 text-stone-700'; // Neutral, less prominent than private red
+      default: // Includes 'UNLISTED' or undefined
+        return 'bg-stone-100 text-stone-600'; // Default neutral
+    }
+  }
 
   function getBlockTypeIcon(typeName: string): string {
     const icons: { [key: string]: string } = {
