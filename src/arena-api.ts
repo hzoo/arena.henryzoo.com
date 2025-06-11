@@ -15,6 +15,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
           source_url
           href
           title
+          image_url
           connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
             user {
               name
@@ -67,6 +68,7 @@ interface SearchResult { // Keep SearchResult, but update its potential structur
   href?: string;       // from 'Link' type in query
   title?: string;      // from 'Link' type in query
   connections?: ConnectionInResult[]; // from 'Link' type in query
+  image_url: string; // from 'Link' type in query
   // Removed fields not present in the new query: id, title, source
 }
 

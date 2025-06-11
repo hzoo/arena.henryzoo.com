@@ -25,6 +25,8 @@ function setupArenaSearch() {
   const saveAuthToken = document.getElementById('save-auth-token') as HTMLButtonElement;
   const clearAuthToken = document.getElementById('clear-auth-token') as HTMLButtonElement;
 
+  let currentPreviewPopup: HTMLDivElement | null = null;
+
   if (!urlInput || !searchBtn) return;
 
   // Load saved auth token from localStorage
@@ -298,6 +300,13 @@ function setupArenaSearch() {
         groupDiv.innerHTML = content;
         searchResultsDiv.appendChild(groupDiv);
       });
+
+      // Add event listeners for image previews
+      const blockLinksWithPreview = searchResultsDiv.querySelectorAll('.block-link-with-preview');
+      blockLinksWithPreview.forEach(link => {
+        link.addEventListener('mouseover', handleBlockPreviewMouseOver);
+        link.addEventListener('mouseout', handleBlockPreviewMouseOut);
+      });
     }
 
     resultsDiv.classList.remove('hidden');
@@ -414,6 +423,8 @@ function setupArenaSearch() {
         allGroupConnections = firstResult.connections || [];
       }
 
+      const previewImageUrl = firstResult.image_url; // Corrected to use image_url
+
       return `
         <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-stone-200/70 shadow-sm hover:shadow-md transition-shadow duration-300 ease-in-out relative group">
           <div class="flex items-start gap-4">
@@ -422,7 +433,8 @@ function setupArenaSearch() {
             </div>
             <div class="flex-1 min-w-0">
               <a href="${firstResult.source_url}" target="_blank" 
-                 class="font-semibold text-stone-800 hover:text-orange-600 transition-colors line-clamp-2 leading-tight group-hover:underline"
+                 class="font-semibold text-stone-800 hover:text-orange-600 transition-colors line-clamp-2 leading-tight group-hover:underline ${previewImageUrl ? 'block-link-with-preview' : ''}"
+                 ${previewImageUrl ? `data-preview-image-url="${previewImageUrl}"` : ''}
                  title="${firstResult.title || sourceKey}">
                 ${displayTitle}
               </a>
@@ -448,9 +460,11 @@ function setupArenaSearch() {
                 ${results.map(result => {
                   if (result.href) {
                     const blockId = result.href.split('/').pop();
+                    const blockPreviewImageUrl = result.image_url; // Corrected to use image_url
                     return `
                       <a href="https://are.na${result.href}" target="_blank"
-                         class="text-xs text-stone-400 hover:text-orange-600 transition-colors font-mono whitespace-nowrap flex-shrink-0">
+                         class="text-xs text-stone-400 hover:text-orange-600 transition-colors font-mono whitespace-nowrap flex-shrink-0 ${blockPreviewImageUrl ? 'block-link-with-preview' : ''}"
+                         ${blockPreviewImageUrl ? `data-preview-image-url="${blockPreviewImageUrl}"` : ''}>
                         #${blockId}
                       </a>`;
                   }
@@ -587,6 +601,54 @@ function setupArenaSearch() {
     pageInput.value = page.toString();
     performSearch();
   };
+
+  function handleBlockPreviewMouseOver(event: Event) {
+    if (currentPreviewPopup) {
+      currentPreviewPopup.remove();
+    }
+
+    const mouseEvent = event as MouseEvent;
+    const target = mouseEvent.currentTarget as HTMLElement;
+    const imageUrl = target.dataset.previewImageUrl;
+
+    if (!imageUrl) return;
+
+    currentPreviewPopup = document.createElement('div');
+    currentPreviewPopup.className = 'block-image-preview-popup';
+    
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = 'Preview';
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100%';
+    img.style.display = 'block';
+
+    currentPreviewPopup.appendChild(img);
+    document.body.appendChild(currentPreviewPopup);
+
+    // Position the popup near the mouse, adjusting for viewport edges
+    const popupWidth = 200; // Approximate width, adjust as needed via CSS
+    const popupHeight = 150; // Approximate height
+    let x = mouseEvent.pageX + 15;
+    let y = mouseEvent.pageY + 15;
+
+    if (x + popupWidth > window.innerWidth) {
+      x = mouseEvent.pageX - popupWidth - 15;
+    }
+    if (y + popupHeight > window.innerHeight) {
+      y = mouseEvent.pageY - popupHeight - 15;
+    }
+
+    currentPreviewPopup.style.left = `${x}px`;
+    currentPreviewPopup.style.top = `${y}px`;
+  }
+
+  function handleBlockPreviewMouseOut() {
+    if (currentPreviewPopup) {
+      currentPreviewPopup.remove();
+      currentPreviewPopup = null;
+    }
+  }
 
   function getVisibilityClasses(visibilityName?: string): string {
     const visibility = visibilityName?.toUpperCase();
