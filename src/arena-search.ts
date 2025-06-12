@@ -293,7 +293,7 @@ function setupArenaSearch() {
         const groupDiv = document.createElement('div');
         // Ensure a unique ID for each group if needed for direct manipulation later, though not strictly necessary for current logic
         // groupDiv.id = `group-${sourceUrlKey.replace(/[^a-zA-Z0-9]/g, '-')}`; 
-        groupDiv.className = 'result-group bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-stone-200/50 hover:bg-white/90 transition-all';
+        groupDiv.className = 'result-group p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-stone-200/50 hover:bg-white/90 transition-all';
         
         // Pass results directly, connections are now part of each result item
         const content = renderGroupedResult(sourceUrlKey, results);
@@ -426,7 +426,7 @@ function setupArenaSearch() {
       const previewImageUrl = firstResult.image_url; // Corrected to use image_url
 
       return `
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-stone-200/70 shadow-sm hover:shadow-md transition-shadow duration-300 ease-in-out relative group">
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 ease-in-out relative group">
           <div class="flex items-start gap-4">
             <div class="flex-shrink-0 w-12 h-12 ${typeColor} rounded-lg flex items-center justify-center text-2xl">
               ${typeIcon}

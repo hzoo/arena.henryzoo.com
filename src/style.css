@@ -173,10 +173,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .container {
     @apply px-4;
   }
-  
-  .result-group {
-    @apply p-4;
-  }
 }
 
 /* Improved text wrapping */
