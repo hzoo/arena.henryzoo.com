@@ -261,14 +261,14 @@ function setupArenaSearch() {
     const totalGroups = Object.keys(groupedResults).length;
     
     summaryDiv.innerHTML = `
-      <div class="flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600">
-        <div class="flex items-center gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-stone-600">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span class="font-medium text-stone-700">${searchResults.total.toLocaleString()} results</span>
-          <span>showing ${startIndex}-${endIndex}</span>
+          <span>(showing ${startIndex}-${endIndex})</span>
           <span>page ${currentPage}</span>
           ${totalGroups !== searchResults.results.length ? `<span class="text-orange-600">• ${totalGroups} unique sources</span>` : ''}
         </div>
-        <code class="bg-stone-100 px-2 py-1 rounded text-xs break-all font-mono">${url}</code>
+        <code class="bg-stone-100 px-2 py-1 rounded text-xs break-all font-mono self-start sm:self-center">${url}</code>
       </div>
     `;
 

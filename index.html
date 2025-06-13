@@ -27,30 +27,34 @@
                 </div>
 
                 <!-- Controls Row -->
-                <div class="flex flex-wrap items-center gap-3 mb-4">
-                    <select id="arena-per-page-input"
-                        class="px-3 py-2 bg-white/60 border-0 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-orange-200 shadow-inner">
-                        <option value="25" selected>25 results</option>
-                        <option value="50">50 results</option>
-                        <option value="100">100 results</option>
-                    </select>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                    <div class="flex items-center gap-3">
+                        <select id="arena-per-page-input"
+                            class="px-3 py-2 bg-white/60 border-0 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-orange-200 shadow-inner">
+                            <option value="25" selected>25 results</option>
+                            <option value="50">50 results</option>
+                            <option value="100">100 results</option>
+                        </select>
 
-                    <div class="flex items-center gap-2">
-                        <label for="arena-page-input" class="text-xs text-stone-500">page:</label>
-                        <input type="number" id="arena-page-input" value="1" min="1"
-                            class="w-16 px-3 py-2 bg-white/60 border-0 rounded-xl text-xs text-center focus:outline-none focus:ring-1 focus:ring-orange-200 shadow-inner">
+                        <div class="flex items-center gap-2">
+                            <label for="arena-page-input" class="text-xs text-stone-500">page:</label>
+                            <input type="number" id="arena-page-input" value="1" min="1"
+                                class="w-16 px-3 py-2 bg-white/60 border-0 rounded-xl text-xs text-center focus:outline-none focus:ring-1 focus:ring-orange-200 shadow-inner">
+                        </div>
                     </div>
 
-                    <button id="arena-search-btn"
-                        class="px-6 py-2 bg-orange-400 text-white rounded-xl text-sm font-medium hover:orange-500 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                        search
-                    </button>
+                    <div class="flex items-center gap-3 mt-3 sm:mt-0">
+                        <button id="arena-search-btn"
+                            class="flex-grow sm:flex-grow-0 px-6 py-2 bg-orange-400 text-white rounded-xl text-sm font-medium hover:orange-500 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            search
+                        </button>
 
-                    <!-- Auth Token Button -->
-                    <button id="auth-token-btn"
-                        class="px-3 py-2 bg-white/60 border-0 rounded-xl text-xs text-stone-500 hover:text-stone-700 hover:bg-white/80 transition-all shadow-inner">
-                        🔑 auth
-                    </button>
+                        <!-- Auth Token Button -->
+                        <button id="auth-token-btn"
+                            class="flex-grow sm:flex-grow-0 px-3 py-2 bg-white/60 border-0 rounded-xl text-xs text-stone-500 hover:text-stone-700 hover:bg-white/80 transition-all shadow-inner">
+                            🔑 auth
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Auth Token Popup -->
