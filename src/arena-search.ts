@@ -452,9 +452,9 @@ function setupArenaSearch() {
             </div>
           `}
           
-          <div class="flex items-center justify-between pt-2 border-t border-stone-100 mt-3">
+          <div class="flex items-center justify-between">
             <div class="flex-1 mr-4 overflow-x-auto no-scrollbar">
-              <div class="flex gap-2 flex-nowrap py-1">
+              <div class="flex gap-2 flex-nowrap p-1">
                 ${results.map(result => {
                   if (result.href) {
                     const blockId = result.href.split('/').pop();
@@ -507,11 +507,11 @@ function setupArenaSearch() {
     const blockIdSuffix = blockHref ? blockHref.split('/').pop() : Date.now();
 
     return `
-      <div id="connections-for-${blockIdSuffix}" class="bg-stone-50 rounded-xl p-4 mt-3 space-y-3">
-        <h4 class="text-stone-700 mb-2">
-          Connections <span class="text-xs text-stone-400">(${uniqueConnections.length})</span>
-        </h4>
-        <div class="space-y-2 max-h-60 overflow-y-auto">
+      <div id="connections-for-${blockIdSuffix}" class="bg-stone-50 rounded-xl p-4 space-y-3">
+        <div class="space-y-2 max-h-68 overflow-y-auto">
+          <h5 class="text-stone-700 font-semibold text-sm uppercase tracking-wide">
+            Connections <span class="text-xs text-stone-400">(${uniqueConnections.length})</span>
+          </h5>
           ${uniqueConnections.map(conn => `
             <div class="flex items-start justify-between text-sm gap-2">
               <div class="flex-1 min-w-0">
