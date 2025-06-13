@@ -55,19 +55,17 @@ function setupArenaSearch() {
     const defaultPerPage = parseInt(perPageInput.value) || 24;
 
     const cacheKey = `arena_search_cache_${urlInput.value}_${defaultPage}_${defaultPerPage}`;
-    const cacheDuration = 60 * 1000 * 60 * 24;
+    const cacheDuration = 60 * 1000 * 60 * 24 * 7; // 7 days
 
     try {
       const cachedItemJSON = localStorage.getItem(cacheKey);
       if (cachedItemJSON) {
         const { timestamp } = JSON.parse(cachedItemJSON);
         if (Date.now() - timestamp < cacheDuration) {
-          console.log('Valid cached results found for default URL, attempting auto-search.');
-          performSearch(cacheDuration);
         } else {
-          console.log('Cached results for default URL are stale, removing.');
           localStorage.removeItem(cacheKey); // Clean up stale cache
         }
+        performSearch(cacheDuration);
       }
     } catch (e) {
       console.warn('Error checking cache for auto-search:', e);
