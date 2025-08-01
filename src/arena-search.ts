@@ -208,6 +208,8 @@ function setupArenaSearch() {
     try {
       const searchResults = await getArenaSearchResults(url, options);
       await showResults(url, searchResults, options);
+      // Update page title with search term
+      document.title = `${url} - Are.na Search`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
@@ -216,6 +218,8 @@ function setupArenaSearch() {
       } else {
         showError(`Error: ${errorMessage}`);
       }
+      // Reset title on error
+      document.title = 'Are.na Search';
     } finally {
       showLoading(false);
     }
@@ -285,6 +289,8 @@ function setupArenaSearch() {
           <p class="text-sm">no results found</p>
         </div>
       `;
+      // Update title for no results
+      document.title = `${url} - Are.na Search`;
     } else {
       // Render grouped results
       Object.entries(groupedResults).forEach(([sourceUrlKey, results]) => {
