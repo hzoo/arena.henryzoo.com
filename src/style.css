@@ -420,6 +420,27 @@ body {
   transition: opacity 0.15s;
 }
 
+/* Source URL display */
+.source-url-container {
+  margin-top: 2px;
+}
+
+.source-url {
+  display: block;
+  font-size: 12px;
+  color: var(--gray-dark);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  transition: color 0.15s;
+}
+
+.source-url:hover {
+  color: var(--black);
+}
+
 /* Block type badge */
 .block-type-badge {
   display: inline-flex;
@@ -452,6 +473,44 @@ body {
   padding: 10px;
   background: var(--gray-light);
   border-radius: var(--radius);
+}
+
+/* Connection row - grid layout for alignment */
+.connection-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.connection-title {
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.connection-title:hover {
+  color: var(--gray-dark);
+}
+
+.connection-user {
+  color: var(--gray-dark);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.connection-user:hover {
+  color: var(--black);
+}
+
+.connection-date {
+  color: var(--gray-dark);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 /* Visibility colors */

@@ -674,8 +674,8 @@ function setupArenaSearch() {
                  title="${firstResult.title || sourceKey}">
                 ${displayTitle}
               </a>
-              <div class="text-xs text-[#6B6B6B] mt-0.5">
-                <a href="${resolvedUrl}" target="_blank" class="hover:text-[#333] truncate block">
+              <div class="source-url-container">
+                <a href="${resolvedUrl}" target="_blank" class="source-url" title="${displayUrl}">
                   ${displayUrl || 'No source URL'}
                 </a>
               </div>
@@ -757,17 +757,13 @@ function setupArenaSearch() {
         </div>
         <div class="space-y-1.5 max-h-48 overflow-y-auto">
           ${uniqueConnections.map(conn => `
-            <div class="flex items-baseline justify-between gap-2 text-xs">
-              <div class="flex-1 min-w-0">
-                <a href="https://are.na/channel/${conn.channel.slug}" target="_blank"
-                   class="font-bold hover:text-[#6B6B6B] transition-colors ${getVisibilityClasses(conn.channel.visibility_name)}">
-                  ${conn.channel.title || 'untitled'}
-                </a>
-              </div>
-              <div class="text-[#6B6B6B] whitespace-nowrap flex-shrink-0">
-                <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="hover:text-[#333]">${conn.channel.user?.name}</a>
-                • ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
-              </div>
+            <div class="connection-row">
+              <a href="https://are.na/channel/${conn.channel.slug}" target="_blank"
+                 class="connection-title ${getVisibilityClasses(conn.channel.visibility_name)}">
+                ${conn.channel.title || 'untitled'}
+              </a>
+              <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="connection-user">${conn.channel.user?.name}</a>
+              <span class="connection-date">• ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</span>
             </div>
           `).join('')}
         </div>
