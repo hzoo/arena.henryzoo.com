@@ -17,7 +17,7 @@ function setupArenaSearch() {
   const summaryDiv = document.getElementById('arena-summary') as HTMLDivElement;
   const searchResultsDiv = document.getElementById('arena-search-results') as HTMLDivElement;
   const paginationDiv = document.getElementById('arena-pagination') as HTMLDivElement;
-  
+
   // Auth token popup elements
   const authTokenBtn = document.getElementById('auth-token-btn') as HTMLButtonElement;
   const authTokenPopup = document.getElementById('auth-token-popup') as HTMLDivElement;
@@ -109,7 +109,7 @@ function setupArenaSearch() {
 
   // Handle search
   searchBtn.addEventListener('click', () => performSearch());
-  
+
   // Handle Enter key in URL input
   urlInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -126,7 +126,7 @@ function setupArenaSearch() {
 
   function loadSavedTokens() {
     const savedAuthToken = localStorage.getItem('arena_auth_token');
-    
+
     if (savedAuthToken) {
       authTokenInput.value = savedAuthToken;
     }
@@ -134,15 +134,13 @@ function setupArenaSearch() {
 
   function updateAuthButtonState() {
     const hasAuthToken = authTokenInput.value.trim().length > 0;
-    
+
     if (hasAuthToken) {
-      authTokenBtn.textContent = '🔑 auth ✓';
-      authTokenBtn.classList.add('text-green-600');
-      authTokenBtn.classList.remove('text-stone-500');
+      authTokenBtn.textContent = 'auth ✓';
+      authTokenBtn.style.color = '#238020';
     } else {
-      authTokenBtn.textContent = '🔑 auth';
-      authTokenBtn.classList.remove('text-green-600');
-      authTokenBtn.classList.add('text-stone-500');
+      authTokenBtn.textContent = 'auth';
+      authTokenBtn.style.color = '';
     }
   }
 
@@ -187,11 +185,11 @@ function setupArenaSearch() {
     hideError();
     hideResults();
 
-    const options: { 
-      appToken: string; 
-      authToken?: string; 
-      page?: number; 
-      per?: number; 
+    const options: {
+      appToken: string;
+      authToken?: string;
+      page?: number;
+      per?: number;
       cacheDuration?: number;
     } = {
       appToken: import.meta.env.VITE_ARENA_APP_TOKEN,
@@ -199,7 +197,7 @@ function setupArenaSearch() {
       per: parseInt(perPageInput.value) || 24,
       cacheDuration: cacheDuration
     };
-    
+
     const authToken = authTokenInput.value.trim();
     if (authToken) {
       options.authToken = authToken;
@@ -230,12 +228,10 @@ function setupArenaSearch() {
       loadingDiv.classList.remove('hidden');
       searchBtn.disabled = true;
       searchBtn.textContent = 'searching...';
-      searchBtn.classList.add('opacity-50');
     } else {
       loadingDiv.classList.add('hidden');
       searchBtn.disabled = false;
       searchBtn.textContent = 'search';
-      searchBtn.classList.remove('opacity-50');
     }
   }
 
@@ -259,20 +255,30 @@ function setupArenaSearch() {
     const perPage = options.per || 24;
     const startIndex = (currentPage - 1) * perPage + 1;
     const endIndex = Math.min(startIndex + searchResults.results.length - 1, searchResults.total);
-    
+
     // Group results by source URL for consolidation
-    const groupedResults = groupResultsByUrl(searchResults.results);
+    // Filter results to hide those that don't make sense (missing source info and not a channel)
+    const filteredResults = searchResults.results.filter(result => {
+      if (result.__typename === 'Channel') return true;
+      const hasSource = result.source_url || result.source?.url;
+      // If requested to hide it, we could be even more strict here.
+      // For now, let's keep it if it has a source OR if it's a block we can at least link to Are.na
+      // But the user specifically said "hide it since that doesnt make sense" for /undefined links.
+      return !!hasSource; 
+    });
+
+    const groupedResults = groupResultsByUrl(filteredResults);
     const totalGroups = Object.keys(groupedResults).length;
-    
+
     summaryDiv.innerHTML = `
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-stone-600">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span class="font-medium text-stone-700">${searchResults.total.toLocaleString()} results</span>
-          <span>(showing ${startIndex}-${endIndex})</span>
-          <span>page ${currentPage}</span>
-          ${totalGroups !== searchResults.results.length ? `<span class="text-orange-600">• ${totalGroups} unique sources</span>` : ''}
+          <span class="font-bold">${searchResults.total.toLocaleString()} results</span>
+          <span class="text-[#6B6B6B]">(showing ${startIndex}-${endIndex})</span>
+          <span class="text-[#6B6B6B]">page ${currentPage}</span>
+          ${totalGroups !== searchResults.results.length ? `<span class="text-[#238020]">• ${totalGroups} unique sources</span>` : ''}
         </div>
-        <code class="bg-stone-100 px-2 py-1 rounded text-xs break-all font-mono self-start sm:self-center">${url}</code>
+        <code class="bg-[#F7F7F7] px-2 py-1 rounded-[3px] text-xs break-all font-mono">${url}</code>
       </div>
     `;
 
@@ -284,8 +290,8 @@ function setupArenaSearch() {
 
     if (searchResults.results.length === 0) {
       searchResultsDiv.innerHTML = `
-        <div class="col-span-full p-8 bg-white/60 rounded-2xl border border-stone-200/50 text-center text-stone-500">
-          <div class="text-2xl mb-2">¯\\_(ツ)_/¯</div>
+        <div class="col-span-full p-6 border border-[#E8E8E8] rounded-[3px] text-center text-[#6B6B6B]">
+          <div class="text-xl mb-2">¯\\_(ツ)_/¯</div>
           <p class="text-sm">no results found</p>
         </div>
       `;
@@ -295,10 +301,8 @@ function setupArenaSearch() {
       // Render grouped results
       Object.entries(groupedResults).forEach(([sourceUrlKey, results]) => {
         const groupDiv = document.createElement('div');
-        // Ensure a unique ID for each group if needed for direct manipulation later, though not strictly necessary for current logic
-        // groupDiv.id = `group-${sourceUrlKey.replace(/[^a-zA-Z0-9]/g, '-')}`; 
-        groupDiv.className = 'result-group p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-stone-200/50 hover:bg-white/90 transition-all';
-        
+        groupDiv.className = 'result-group p-3';
+
         // Pass results directly, connections are now part of each result item
         const content = renderGroupedResult(sourceUrlKey, results);
         groupDiv.innerHTML = content;
@@ -331,7 +335,7 @@ function setupArenaSearch() {
     } catch (e) {
       // Fallback for invalid URLs or non-HTTP URLs
       let fallback = url;
-      
+
       // Attempt to remove www. prefix
       // Check for http://www. or https://www. first
       if (fallback.toLowerCase().startsWith('http://www.')) {
@@ -341,7 +345,7 @@ function setupArenaSearch() {
       } else if (fallback.toLowerCase().startsWith('www.')) { // Then check for just www.
         fallback = fallback.substring('www.'.length);
       }
-      
+
       // Remove trailing slash
       if (fallback.endsWith('/')) {
         fallback = fallback.slice(0, -1);
@@ -350,27 +354,48 @@ function setupArenaSearch() {
     }
   }
 
+  function resolveResultUrl(result: any): string {
+    if (result.__typename === 'Channel') {
+      return `https://are.na/channel/${result.slug || result.id}`;
+    }
+    
+    // Check various sources for a URL
+    const url = result.source_url || result.source?.url;
+    if (url) return url;
+    
+    // Fallback to Are.na block page if no source URL is found
+    if (result.href) {
+      return `https://are.na${result.href}`;
+    }
+    
+    return '';
+  }
+
   function groupResultsByUrl(results: any[]): { [key: string]: any[] } {
     const groups: { [key: string]: any[] } = {};
-    
+
     results.forEach(result => {
       let key: string;
-      
+
       if (result.__typename === 'Channel') {
         // Channels are their own group
-        key = `channel:${result.id}`;
+        key = `channel:${result.id || result.slug}`;
       } else {
         // Group blocks by their normalized source URL
-        const rawUrl = result.source_url || result.source?.url;
-        key = normalizeUrl(rawUrl) || `${result.__typename}:${result.id}`; // Fallback if no URL
+        const resolvedUrl = resolveResultUrl(result);
+        
+        // If it's a block without a source URL, we still want to group it 
+        // if it has an Are.na href, but we should probably filter these out 
+        // earlier if we only want "URL references".
+        key = normalizeUrl(resolvedUrl) || `${result.__typename}:${result.id || Math.random()}`;
       }
-      
+
       if (!groups[key]) {
         groups[key] = [];
       }
       groups[key].push(result);
     });
-    
+
     return groups;
   }
 
@@ -381,39 +406,44 @@ function setupArenaSearch() {
     const blockHref = firstResult.href || ''; // Get block href for connections
 
     if (isChannel) {
-      // Render channel normally (no direct connections to display in this view)
+      // Render channel
       return `
-        <div class="space-y-4">
+        <div class="space-y-2">
           <div class="flex items-center gap-2">
-            <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-xl text-sm font-medium">channel</span>
-            ${firstResult.visibility_name ? `<span class="px-2 py-1 rounded-lg text-xs ${getVisibilityClasses(firstResult.visibility_name)}">${firstResult.visibility_name.toLowerCase()}</span>` : ''}
+            <span class="block-type-badge">channel</span>
+            ${firstResult.visibility_name ? `<span class="text-xs ${getVisibilityClasses(firstResult.visibility_name)}">${firstResult.visibility_name.toLowerCase()}</span>` : ''}
           </div>
-          
-          <h3 class="font-bold text-stone-800 leading-tight text-lg">
-            <a href="https://are.na/${firstResult.slug || `channel/${firstResult.id}`}" target="_blank" 
-               class="text-stone-800 hover:text-orange-600 transition-colors">
+
+          <h3 class="font-bold leading-tight">
+            <a href="https://are.na/${firstResult.slug || `channel/${firstResult.id}`}" target="_blank"
+               class="hover:text-[#6B6B6B] transition-colors">
               ${firstResult.title || 'untitled channel'}
             </a>
           </h3>
-          
+
           ${firstResult.owner ? `
-            <p class="text-sm text-stone-500">
+            <p class="text-xs text-[#6B6B6B]">
               by ${firstResult.owner.name || 'unknown'}
             </p>
           ` : ''}
-          
-          <div class="flex items-center justify-between text-sm text-stone-400">
+
+          <div class="flex items-center justify-between text-xs text-[#6B6B6B]">
             ${firstResult.counts?.contents ? `<span>${firstResult.counts.contents} item${firstResult.counts.contents !== 1 ? 's' : ''}</span>` : '<span></span>'}
-            <span>#${firstResult.id}</span>
+            <span class="font-mono">#${firstResult.id}</span>
           </div>
         </div>
       `;
     } else {
       // Render a single block or a group of blocks with the same source URL
-      const displayTitle = firstResult.title || (firstResult.source_url ? new URL(firstResult.source_url).hostname : 'Untitled Block');
+      const resolvedUrl = resolveResultUrl(firstResult);
+      const displayUrl = resolvedUrl.replace(/^https?:\/\//, '').replace(/^www\./, '');
+      
+      const displayTitle = firstResult.title || 
+                          (firstResult.source?.title) || 
+                          (firstResult.source_url ? new URL(firstResult.source_url).hostname : 'Untitled Block');
+      
       const blockType = firstResult.__typename || 'Block';
-      const typeIcon = getBlockTypeIcon(blockType);
-      const typeColor = getBlockTypeColor(blockType);
+      const typeLabel = getBlockTypeLabel(blockType);
 
       // Consolidate connections from all blocks in the group if multiple exist
       let allGroupConnections: any[] = [];
@@ -427,52 +457,50 @@ function setupArenaSearch() {
         allGroupConnections = firstResult.connections || [];
       }
 
-      const previewImageUrl = firstResult.image_url; // Corrected to use image_url
+      const previewImageUrl = firstResult.image_url;
 
       return `
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 ease-in-out relative group">
-          <div class="flex items-start gap-4">
-            <div class="flex-shrink-0 w-12 h-12 ${typeColor} rounded-lg flex items-center justify-center text-2xl">
-              ${typeIcon}
-            </div>
+        <div class="space-y-2">
+          <div class="flex items-start gap-3">
+            <span class="block-type-badge flex-shrink-0">${typeLabel}</span>
             <div class="flex-1 min-w-0">
-              <a href="${firstResult.source_url}" target="_blank" 
-                 class="font-semibold text-stone-800 hover:text-orange-600 transition-colors line-clamp-2 leading-tight group-hover:underline ${previewImageUrl ? 'block-link-with-preview' : ''}"
+              <a href="${resolvedUrl}" target="_blank"
+                 class="font-bold hover:text-[#6B6B6B] transition-colors line-clamp-2 leading-tight ${previewImageUrl ? 'block-link-with-preview' : ''}"
                  ${previewImageUrl ? `data-preview-image-url="${previewImageUrl}"` : ''}
                  title="${firstResult.title || sourceKey}">
                 ${displayTitle}
               </a>
-              <div class="text-xs text-stone-500 mt-1">
-                <a href="${firstResult.source_url}" target="_blank" class="hover:text-orange-500 truncate">
-                  ${firstResult.source_url ? firstResult.source_url.replace(/^https?:\/\//, '').replace(/^www\./, '') : 'No source URL'}
+              <div class="text-xs text-[#6B6B6B] mt-0.5">
+                <a href="${resolvedUrl}" target="_blank" class="hover:text-[#333] truncate block">
+                  ${displayUrl || 'No source URL'}
                 </a>
               </div>
             </div>
           </div>
-          
+
           ${allGroupConnections && allGroupConnections.length > 0 ? `
-            ${renderConnectionsForGroup(allGroupConnections, blockHref)} 
+            ${renderConnectionsForGroup(allGroupConnections, blockHref)}
           ` : `
-            <div class="mt-3 p-4 bg-stone-50 rounded-xl">
-              <p class="text-xs text-stone-400 italic">no connections found for this item.</p>
+            <div class="connections-section">
+              <p class="text-xs text-[#6B6B6B] italic">no connections found</p>
             </div>
           `}
-          
-          <div class="flex items-center justify-between">
-            <div class="flex-1 mr-4 overflow-x-auto no-scrollbar">
-              <div class="flex gap-2 flex-nowrap p-1">
+
+          <div class="flex items-center pt-1">
+            <div class="flex-1 overflow-x-auto no-scrollbar">
+              <div class="flex gap-2 flex-nowrap">
                 ${results.map(result => {
                   if (result.href) {
                     const blockId = result.href.split('/').pop();
-                    const blockPreviewImageUrl = result.image_url; // Corrected to use image_url
+                    const blockPreviewImageUrl = result.image_url;
                     return `
                       <a href="https://are.na${result.href}" target="_blank"
-                         class="text-xs text-stone-400 hover:text-orange-600 transition-colors font-mono whitespace-nowrap flex-shrink-0 ${blockPreviewImageUrl ? 'block-link-with-preview' : ''}"
+                         class="text-xs text-[#6B6B6B] hover:text-[#333] transition-colors font-mono whitespace-nowrap flex-shrink-0 ${blockPreviewImageUrl ? 'block-link-with-preview' : ''}"
                          ${blockPreviewImageUrl ? `data-preview-image-url="${blockPreviewImageUrl}"` : ''}>
                         #${blockId}
                       </a>`;
                   }
-                  return ''; // Skip if not a suitable block type or no href
+                  return '';
                 }).join('')}
               </div>
             </div>
@@ -483,14 +511,13 @@ function setupArenaSearch() {
   }
 
   function renderConnectionsForGroup(connections: any[], blockHref?: string): string {
-    // The connections passed should be all available ones from the initial query.
     const connectionsToRender = connections;
 
     if (!connectionsToRender || connectionsToRender.length === 0) {
-      return ''; // Return empty string, caller handles the "no connections" message.
+      return '';
     }
 
-    // Deduplicate connections by user + channel slug combination to show unique "saves"
+    // Deduplicate connections by user + channel slug combination
     const uniqueConnectionsMap = new Map<string, any>();
     connectionsToRender.forEach(conn => {
       if (conn && conn.channel && conn.channel.slug && conn.channel.user && conn.channel.user.slug) {
@@ -502,7 +529,7 @@ function setupArenaSearch() {
     });
 
     const uniqueConnections = Array.from(uniqueConnectionsMap.values());
-    
+
     // Sort connections by date added (newest first)
     uniqueConnections.sort((a, b) => {
       const dateA = new Date(a.channel.added_to_at).getTime();
@@ -513,22 +540,22 @@ function setupArenaSearch() {
     const blockIdSuffix = blockHref ? blockHref.split('/').pop() : Date.now();
 
     return `
-      <div id="connections-for-${blockIdSuffix}" class="bg-stone-50 rounded-xl p-4 space-y-3">
-        <div class="space-y-2 max-h-68 overflow-y-auto">
-          <h5 class="text-stone-700 font-semibold text-sm uppercase tracking-wide">
-            Connections <span class="text-xs text-stone-400">(${uniqueConnections.length})</span>
-          </h5>
+      <div id="connections-for-${blockIdSuffix}" class="connections-section">
+        <div class="text-xs font-bold uppercase tracking-wide text-[#6B6B6B] mb-2">
+          Connections <span class="font-normal">(${uniqueConnections.length})</span>
+        </div>
+        <div class="space-y-1.5 max-h-48 overflow-y-auto">
           ${uniqueConnections.map(conn => `
-            <div class="flex items-start justify-between text-sm gap-2">
+            <div class="flex items-baseline justify-between gap-2 text-xs">
               <div class="flex-1 min-w-0">
-                <a href="https://are.na/channel/${conn.channel.slug}" target="_blank" 
-                   class="font-medium text-stone-700 ${getVisibilityClasses(conn.channel.visibility_name)} transition-colors">
+                <a href="https://are.na/channel/${conn.channel.slug}" target="_blank"
+                   class="font-bold hover:text-[#6B6B6B] transition-colors ${getVisibilityClasses(conn.channel.visibility_name)}">
                   ${conn.channel.title || 'untitled'}
                 </a>
-                <div class="text-xs text-stone-500">
-                  <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="hover:text-orange-500">${conn.channel.user?.name}</a>
-                  • ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </div>
+              </div>
+              <div class="text-[#6B6B6B] whitespace-nowrap flex-shrink-0">
+                <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="hover:text-[#333]">${conn.channel.user?.name}</a>
+                • ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
               </div>
             </div>
           `).join('')}
@@ -539,64 +566,64 @@ function setupArenaSearch() {
 
   function showPagination(total: number, currentPage: number, perPage: number) {
     const totalPages = Math.ceil(total / perPage);
-    
+
     if (totalPages <= 1) {
       paginationDiv.innerHTML = '';
       return;
     }
 
     let paginationHTML = '';
-    
+
     // Previous button
     if (currentPage > 1) {
       paginationHTML += `
         <button class="pagination-btn" onclick="changePage(${currentPage - 1})">
-          ← prev
+          prev
         </button>
       `;
     }
-    
-    // Page numbers (show current page and a few around it)
+
+    // Page numbers
     const startPage = Math.max(1, currentPage - 2);
     const endPage = Math.min(totalPages, currentPage + 2);
-    
+
     if (startPage > 1) {
       paginationHTML += `
         <button class="pagination-btn" onclick="changePage(1)">1</button>
       `;
       if (startPage > 2) {
-        paginationHTML += '<span class="px-2 text-stone-400 text-xs">⋯</span>';
+        paginationHTML += '<span class="px-1 text-[#6B6B6B] text-xs">...</span>';
       }
     }
-    
+
     for (let i = startPage; i <= endPage; i++) {
       const isActive = i === currentPage;
       paginationHTML += `
-        <button class="pagination-btn ${isActive ? 'active' : ''}" 
+        <button class="pagination-btn ${isActive ? 'active' : ''}"
                 ${isActive ? 'disabled' : `onclick="changePage(${i})"`}>
           ${i}
         </button>
       `;
     }
-    
+
     if (endPage < totalPages) {
       if (endPage < totalPages - 1) {
-        paginationHTML += '<span class="px-2 text-stone-400 text-xs">⋯</span>';
+        paginationHTML += '<span class="px-1 text-[#6B6B6B] text-xs">...</span>';
       }
       paginationHTML += `
         <button class="pagination-btn" onclick="changePage(${totalPages})">${totalPages}</button>
       `;
     }
-    
+
     // Next button
     if (currentPage < totalPages) {
       paginationHTML += `
         <button class="pagination-btn" onclick="changePage(${currentPage + 1})">
-          next →
+          next
         </button>
       `;
     }
-    
+
     paginationDiv.innerHTML = paginationHTML;
   }
 
@@ -619,7 +646,7 @@ function setupArenaSearch() {
 
     currentPreviewPopup = document.createElement('div');
     currentPreviewPopup.className = 'block-image-preview-popup';
-    
+
     const img = document.createElement('img');
     img.src = imageUrl;
     img.alt = 'Preview';
@@ -630,9 +657,9 @@ function setupArenaSearch() {
     currentPreviewPopup.appendChild(img);
     document.body.appendChild(currentPreviewPopup);
 
-    // Position the popup near the mouse, adjusting for viewport edges
-    const popupWidth = 200; // Approximate width, adjust as needed via CSS
-    const popupHeight = 150; // Approximate height
+    // Position the popup near the mouse
+    const popupWidth = 200;
+    const popupHeight = 150;
     let x = mouseEvent.pageX + 15;
     let y = mouseEvent.pageY + 15;
 
@@ -658,39 +685,26 @@ function setupArenaSearch() {
     const visibility = visibilityName?.toUpperCase();
     switch (visibility) {
       case 'PUBLIC':
-        return 'bg-green-100 text-green-700 hover:bg-green-200';
+        return 'visibility-public';
       case 'PRIVATE':
-        return 'bg-red-100 text-red-700 hover:bg-red-200';
+        return 'visibility-private';
       case 'CLOSED':
-        return 'text-stone-700 hover:bg-stone-200';
+        return 'visibility-closed';
       default:
-        return 'bg-stone-100 text-stone-600'; // Default neutral
+        return '';
     }
   }
 
-  function getBlockTypeIcon(typeName: string): string {
-    const icons: { [key: string]: string } = {
-      'Text': '📝',
-      'Image': '🖼️',
-      'Link': '🔗',
-      'Embed': '📺',
-      'Attachment': '📎',
-      'PendingBlock': '⏳',
-      'Channel': '📁'
+  function getBlockTypeLabel(typeName: string): string {
+    const labels: { [key: string]: string } = {
+      'Text': 'Text',
+      'Image': 'Image',
+      'Link': 'Link',
+      'Embed': 'Embed',
+      'Attachment': 'File',
+      'PendingBlock': 'Pending',
+      'Channel': 'Channel'
     };
-    return icons[typeName] || '📄';
-  }
-
-  function getBlockTypeColor(typeName: string): string {
-    const colors: { [key: string]: string } = {
-      'Text': 'bg-green-100 text-green-700',
-      'Image': 'bg-purple-100 text-purple-700',
-      'Link': 'bg-blue-100 text-blue-700',
-      'Embed': 'bg-orange-100 text-orange-700',
-      'Attachment': 'bg-gray-100 text-gray-700',
-      'PendingBlock': 'bg-yellow-100 text-yellow-700',
-      'Channel': 'bg-blue-100 text-blue-700'
-    };
-    return colors[typeName] || 'bg-stone-100 text-stone-700';
+    return labels[typeName] || 'Block';
   }
 }

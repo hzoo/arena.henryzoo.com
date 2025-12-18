@@ -11,7 +11,9 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
     ) {
       total
       results {
+        __typename
         ... on Link {
+          id
           source_url
           href
           title
@@ -33,7 +35,102 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             }
           }
         }
-        __typename
+        ... on Image {
+          id
+          href
+          title
+          image_url
+          source {
+            url
+            title
+          }
+          connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            user { name slug }
+            channel {
+              user { name slug }
+              title
+              slug
+              added_to_at
+              visibility_name
+            }
+          }
+        }
+        ... on Text {
+          id
+          href
+          title
+          source {
+            url
+            title
+          }
+          connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            user { name slug }
+            channel {
+              user { name slug }
+              title
+              slug
+              added_to_at
+              visibility_name
+            }
+          }
+        }
+        ... on Embed {
+          id
+          href
+          title
+          source {
+            url
+            title
+          }
+          connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            user { name slug }
+            channel {
+              user { name slug }
+              title
+              slug
+              added_to_at
+              visibility_name
+            }
+          }
+        }
+        ... on Attachment {
+          id
+          href
+          title
+          source {
+            url
+            title
+          }
+          connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            user { name slug }
+            channel {
+              user { name slug }
+              title
+              slug
+              added_to_at
+              visibility_name
+            }
+          }
+        }
+        ... on Channel {
+          id
+          slug
+          title
+          visibility_name
+          counts {
+            contents
+          }
+          owner {
+            ... on User {
+              name
+              slug
+            }
+            ... on Group {
+              name
+              slug
+            }
+          }
+        }
       }
       __typename
     }
@@ -44,11 +141,16 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
 
 // Types for Arena API responses
 interface Channel { // Keep Channel as it's used in the new connections structure
+  id?: string | number;
   title: string;
   slug: string;
   added_to_at: string; // Keep as it's part of the new connections structure
   visibility_name: 'PUBLIC' | 'CLOSED' | 'PRIVATE';
   user: User; // Channel has a user associated with it
+  counts?: {
+    contents: number;
+  };
+  owner?: User;
 }
 
 interface User { // Add User interface for the new connections structure
@@ -59,17 +161,26 @@ interface User { // Add User interface for the new connections structure
 interface ConnectionInResult { // Renamed from Connection to avoid conflict if a global Connection type exists
   user: User;
   channel: Channel;
-  // Removed fields not present in the new connections structure: id, created_at
 }
 
 interface SearchResult { // Keep SearchResult, but update its potential structure
+  id?: string | number;
   __typename: string;
   source_url?: string; // from 'Link' type in query
+  source?: {
+    url?: string;
+    title?: string;
+  };
   href?: string;       // from 'Link' type in query
   title?: string;      // from 'Link' type in query
+  slug?: string;       // from 'Channel' type in query
+  visibility_name?: string; // from 'Channel' type in query
+  counts?: {
+    contents: number;
+  };
+  owner?: User;
   connections?: ConnectionInResult[]; // from 'Link' type in query
-  image_url: string; // from 'Link' type in query
-  // Removed fields not present in the new query: id, title, source
+  image_url?: string; // from 'Link' type in query
 }
 
 // Core Arena API function - using exact configuration from are.na
