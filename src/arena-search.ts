@@ -163,30 +163,10 @@ function setupArenaSearch() {
     console.log(`URL from path: "${initialUrlFromPath}", performing initial search.`);
     performSearch(); // Perform search with the URL from the path
   } else {
-    // No URL from path, pick random default URL
+    // No URL from path, pick random default URL and auto-search
     const defaultUrls = ['henryzoo.com', 'hopeinsource.com'];
     urlInput.value = defaultUrls[Math.floor(Math.random() * defaultUrls.length)];
-
-    // Attempt to auto-search if cached results for the default URL exist
-    const defaultPage = parseInt(pageInput.value) || 1;
-    const defaultPerPage = parseInt(perPageInput.value) || 24;
-
-    const cacheKey = `arena_search_cache_${urlInput.value}_${defaultPage}_${defaultPerPage}`;
-    const cacheDuration = 60 * 1000 * 60 * 24 * 7; // 7 days
-
-    try {
-      const cachedItemJSON = localStorage.getItem(cacheKey);
-      if (cachedItemJSON) {
-        const { timestamp } = JSON.parse(cachedItemJSON);
-        if (Date.now() - timestamp < cacheDuration) {
-        } else {
-          localStorage.removeItem(cacheKey); // Clean up stale cache
-        }
-        performSearch(cacheDuration);
-      }
-    } catch (e) {
-      console.warn('Error checking cache for auto-search:', e);
-    }
+    performSearch();
   }
 
   // Save auth token to localStorage when it changes
