@@ -246,6 +246,20 @@ function setupArenaSearch() {
     });
   }
 
+  // Handle example link clicks
+  const exampleLinks = document.querySelectorAll('.example-link');
+  exampleLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = (link as HTMLElement).dataset.url;
+      if (url) {
+        urlInput.value = url;
+        pageInput.value = '1'; // Reset to page 1
+        performSearch();
+      }
+    });
+  });
+
   function loadSubdomainPreference() {
     if (!showSubdomainsCheckbox) return;
     const savedPref = localStorage.getItem('arena_show_subdomains');
@@ -404,10 +418,11 @@ function setupArenaSearch() {
     const groupedResults = groupResultsByUrl(filteredResults);
     const totalGroups = Object.keys(groupedResults).length;
 
-    // Minimal summary - just counts
+    // Minimal summary - just counts (add + for large totals that hit API limit)
+    const totalDisplay = searchResults.total >= 10000 ? `${searchResults.total}+` : searchResults.total;
     summaryDiv.innerHTML = `
       <div class="summary-minimal">
-        <span class="summary-stats">${searchResults.total} blocks</span>
+        <span class="summary-stats">${totalDisplay} blocks</span>
         ${totalGroups !== searchResults.results.length ? `<span class="summary-divider">·</span><span class="summary-stats">${totalGroups} sources</span>` : ''}
       </div>
     `;

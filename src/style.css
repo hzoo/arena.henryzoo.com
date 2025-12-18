@@ -68,6 +68,27 @@ body {
   gap: 12px;
 }
 
+.example-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.example-label {
+  color: var(--gray-dark);
+}
+
+.example-link {
+  color: var(--gray-dark);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.example-link:hover {
+  color: var(--black);
+}
+
 .bookmarklet-link {
   display: flex;
   align-items: center;
