@@ -315,10 +315,35 @@ function setupArenaSearch() {
         link.addEventListener('mouseover', handleBlockPreviewMouseOver);
         link.addEventListener('mouseout', handleBlockPreviewMouseOut);
       });
+
+      // Add event listeners for block ID toggles
+      const blocksToggles = searchResultsDiv.querySelectorAll('.blocks-toggle');
+      blocksToggles.forEach(toggle => {
+        toggle.addEventListener('click', handleBlocksToggleClick);
+      });
     }
 
     resultsDiv.classList.remove('hidden');
     resultsDiv.classList.add('fade-in');
+  }
+
+  function handleBlocksToggleClick(event: Event) {
+    const toggle = event.currentTarget as HTMLElement;
+    const targetId = toggle.dataset.target;
+    if (!targetId) return;
+
+    const blocksList = document.getElementById(targetId);
+    if (!blocksList) return;
+
+    const isExpanded = toggle.classList.contains('expanded');
+
+    if (isExpanded) {
+      toggle.classList.remove('expanded');
+      blocksList.classList.remove('expanded');
+    } else {
+      toggle.classList.add('expanded');
+      blocksList.classList.add('expanded');
+    }
   }
 
   function normalizeUrl(url: string): string {
@@ -437,11 +462,11 @@ function setupArenaSearch() {
       // Render a single block or a group of blocks with the same source URL
       const resolvedUrl = resolveResultUrl(firstResult);
       const displayUrl = resolvedUrl.replace(/^https?:\/\//, '').replace(/^www\./, '');
-      
-      const displayTitle = firstResult.title || 
-                          (firstResult.source?.title) || 
+
+      const displayTitle = firstResult.title ||
+                          (firstResult.source?.title) ||
                           (firstResult.source_url ? new URL(firstResult.source_url).hostname : 'Untitled Block');
-      
+
       const blockType = firstResult.__typename || 'Block';
       const typeLabel = getBlockTypeLabel(blockType);
 
@@ -457,16 +482,25 @@ function setupArenaSearch() {
         allGroupConnections = firstResult.connections || [];
       }
 
-      const previewImageUrl = firstResult.image_url;
+      // Find first available image from any block in the group
+      const previewImageUrl = results.find(r => r.image_url)?.image_url;
+      const blockCount = results.length;
+      const uniqueId = `blocks-${firstResult.id || Date.now()}`;
+
+      // Thumbnail or type badge
+      const thumbnailOrBadge = previewImageUrl
+        ? `<div class="block-thumbnail">
+             <img src="${previewImageUrl}" alt="" loading="lazy" />
+           </div>`
+        : `<span class="block-type-badge">${typeLabel}</span>`;
 
       return `
         <div class="space-y-2">
           <div class="flex items-start gap-3">
-            <span class="block-type-badge flex-shrink-0">${typeLabel}</span>
+            ${thumbnailOrBadge}
             <div class="flex-1 min-w-0">
               <a href="${resolvedUrl}" target="_blank"
-                 class="font-bold hover:text-[#6B6B6B] transition-colors line-clamp-2 leading-tight ${previewImageUrl ? 'block-link-with-preview' : ''}"
-                 ${previewImageUrl ? `data-preview-image-url="${previewImageUrl}"` : ''}
+                 class="font-bold hover:text-[#6B6B6B] transition-colors line-clamp-2 leading-tight"
                  title="${firstResult.title || sourceKey}">
                 ${displayTitle}
               </a>
@@ -486,22 +520,28 @@ function setupArenaSearch() {
             </div>
           `}
 
-          <div class="flex items-center pt-1">
-            <div class="flex-1 overflow-x-auto no-scrollbar">
-              <div class="flex gap-2 flex-nowrap">
-                ${results.map(result => {
-                  if (result.href) {
-                    const blockId = result.href.split('/').pop();
-                    const blockPreviewImageUrl = result.image_url;
-                    return `
-                      <a href="https://are.na${result.href}" target="_blank"
-                         class="text-xs text-[#6B6B6B] hover:text-[#333] transition-colors font-mono whitespace-nowrap flex-shrink-0 ${blockPreviewImageUrl ? 'block-link-with-preview' : ''}"
-                         ${blockPreviewImageUrl ? `data-preview-image-url="${blockPreviewImageUrl}"` : ''}>
-                        #${blockId}
-                      </a>`;
-                  }
-                  return '';
-                }).join('')}
+          <div class="pt-1">
+            <div class="blocks-toggle" data-target="${uniqueId}">
+              <span class="blocks-toggle-icon">›</span>
+              <span>${blockCount} block${blockCount !== 1 ? 's' : ''}</span>
+            </div>
+            <div id="${uniqueId}" class="blocks-list">
+              <div class="blocks-list-inner">
+                <div class="blocks-list-content flex gap-2 flex-wrap">
+                  ${results.map(result => {
+                    if (result.href) {
+                      const blockId = result.href.split('/').pop();
+                      const blockPreviewImageUrl = result.image_url;
+                      return `
+                        <a href="https://are.na${result.href}" target="_blank"
+                           class="text-xs text-[#6B6B6B] hover:text-[#333] transition-colors font-mono whitespace-nowrap ${blockPreviewImageUrl ? 'block-link-with-preview' : ''}"
+                           ${blockPreviewImageUrl ? `data-preview-image-url="${blockPreviewImageUrl}"` : ''}>
+                          #${blockId}
+                        </a>`;
+                    }
+                    return '';
+                  }).join('')}
+                </div>
               </div>
             </div>
           </div>

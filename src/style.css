@@ -266,6 +266,66 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   padding: 12px;
 }
 
+/* Block thumbnail */
+.block-thumbnail {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--arena-radius);
+  overflow: hidden;
+  background: var(--arena-gray1);
+}
+
+.block-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Collapsible block IDs */
+.blocks-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  font-size: 11px;
+  color: var(--arena-gray3);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+
+.blocks-toggle:hover {
+  color: var(--arena-gray6);
+}
+
+.blocks-toggle-icon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.blocks-toggle.expanded .blocks-toggle-icon {
+  transform: rotate(90deg);
+}
+
+.blocks-list {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s ease;
+}
+
+.blocks-list.expanded {
+  grid-template-rows: 1fr;
+}
+
+.blocks-list-inner {
+  overflow: hidden;
+}
+
+.blocks-list-content {
+  padding-top: 8px;
+}
+
 /* Mobile adjustments */
 @media (max-width: 640px) {
   .container {
