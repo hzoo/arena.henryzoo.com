@@ -24,6 +24,23 @@ function truncateUrlForDisplay(url: string, maxLength: number = 50): string {
   return display;
 }
 
+// Truncate title for display
+function truncateTitle(title: string, maxLength: number = 80): string {
+  if (!title) return '';
+
+  // If title looks like a URL or encoded URL, truncate more aggressively
+  if (title.startsWith('http') || title.startsWith('url=') || title.includes('%2F')) {
+    return truncateUrlForDisplay(title, 50);
+  }
+
+  // Regular title truncation
+  if (title.length > maxLength) {
+    return title.substring(0, maxLength - 1) + '…';
+  }
+
+  return title;
+}
+
 // Classify a URL relative to the search term
 function classifyUrl(sourceKey: string, searchTerm: string): UrlCategory {
   // Channels are their own category
@@ -439,6 +456,10 @@ function setupArenaSearch() {
       let subdomainSectionStarted = false;
       let subdomainContainer: HTMLDivElement | null = null;
 
+      // Track other section for collapsible header
+      let otherSectionStarted = false;
+      let otherContainer: HTMLDivElement | null = null;
+
       sortedResults.forEach(({ key: sourceUrlKey, results, category }) => {
         // Skip subdomains if hidden
         if (category === 'subdomain' && !showSubdomains) return;
@@ -479,6 +500,42 @@ function setupArenaSearch() {
           }
         }
 
+        // Add other section header (collapsible, starts collapsed)
+        if (category === 'other' && !otherSectionStarted) {
+          otherSectionStarted = true;
+
+          // Create section header
+          const sectionHeader = document.createElement('div');
+          sectionHeader.className = 'col-span-full subdomain-section-header';
+          sectionHeader.innerHTML = `
+            <button class="subdomain-toggle flex items-center gap-2 text-xs text-[#6B6B6B] hover:text-[#333] w-full py-2">
+              <span class="toggle-icon transition-transform">▶</span>
+              <span>Other</span>
+            </button>
+          `;
+          searchResultsDiv.appendChild(sectionHeader);
+
+          // Create container for other results (starts hidden)
+          otherContainer = document.createElement('div');
+          otherContainer.className = 'subdomain-results-container col-span-full grid grid-cols-1 lg:grid-cols-2 gap-3 hidden';
+          searchResultsDiv.appendChild(otherContainer);
+
+          // Add toggle handler
+          const toggleBtn = sectionHeader.querySelector('.subdomain-toggle');
+          if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+              const icon = sectionHeader.querySelector('.toggle-icon');
+              if (otherContainer?.classList.contains('hidden')) {
+                otherContainer.classList.remove('hidden');
+                if (icon) icon.textContent = '▼';
+              } else {
+                otherContainer?.classList.add('hidden');
+                if (icon) icon.textContent = '▶';
+              }
+            });
+          }
+        }
+
         const groupDiv = document.createElement('div');
         groupDiv.className = 'result-group p-3';
 
@@ -486,9 +543,11 @@ function setupArenaSearch() {
         const content = renderGroupedResult(sourceUrlKey, results, category);
         groupDiv.innerHTML = content;
 
-        // Append to subdomain container or main results
+        // Append to appropriate container
         if (category === 'subdomain' && subdomainContainer) {
           subdomainContainer.appendChild(groupDiv);
+        } else if (category === 'other' && otherContainer) {
+          otherContainer.appendChild(groupDiv);
         } else {
           searchResultsDiv.appendChild(groupDiv);
         }
@@ -655,9 +714,10 @@ function setupArenaSearch() {
       const fullDisplayUrl = resolvedUrl.replace(/^https?:\/\//, '').replace(/^www\./, '');
       const displayUrl = truncateUrlForDisplay(resolvedUrl, 60);
 
-      const displayTitle = firstResult.title ||
+      const rawTitle = firstResult.title ||
                           (firstResult.source?.title) ||
                           (firstResult.source_url ? new URL(firstResult.source_url).hostname : 'Untitled Block');
+      const displayTitle = truncateTitle(rawTitle, 80);
 
       const blockType = firstResult.__typename || 'Block';
       const typeLabel = getBlockTypeLabel(blockType);
@@ -694,7 +754,7 @@ function setupArenaSearch() {
             <div class="flex-1 min-w-0">
               <a href="${resolvedUrl}" target="_blank"
                  class="font-bold hover:text-[#6B6B6B] transition-colors line-clamp-2 leading-tight"
-                 title="${firstResult.title || sourceKey}">
+                 title="${rawTitle}">
                 ${displayTitle}
               </a>
               <div class="source-url-container">
