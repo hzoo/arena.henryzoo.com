@@ -3,6 +3,27 @@ import { getArenaSearchResults } from './arena-api';
 // URL category type for sorting results
 type UrlCategory = 'exact' | 'subpath' | 'subdomain' | 'channel' | 'other';
 
+// Truncate URL for display, especially stripping query params
+function truncateUrlForDisplay(url: string, maxLength: number = 50): string {
+  if (!url) return '';
+
+  // Remove protocol and www
+  let display = url.replace(/^https?:\/\//, '').replace(/^www\./, '');
+
+  // If it has query params and is long, strip them
+  const queryIndex = display.indexOf('?');
+  if (queryIndex > 0 && display.length > maxLength) {
+    display = display.substring(0, queryIndex);
+  }
+
+  // If still too long, truncate with ellipsis
+  if (display.length > maxLength) {
+    display = display.substring(0, maxLength - 1) + '…';
+  }
+
+  return display;
+}
+
 // Classify a URL relative to the search term
 function classifyUrl(sourceKey: string, searchTerm: string): UrlCategory {
   // Channels are their own category
@@ -125,8 +146,9 @@ function setupArenaSearch() {
     console.log(`URL from path: "${initialUrlFromPath}", performing initial search.`);
     performSearch(); // Perform search with the URL from the path
   } else {
-    // No URL from path, set default URL and check cache for it
-    urlInput.value = 'henryzoo.com'; // Default URL
+    // No URL from path, pick random default URL
+    const defaultUrls = ['henryzoo.com', 'hopeinsource.com'];
+    urlInput.value = defaultUrls[Math.floor(Math.random() * defaultUrls.length)];
 
     // Attempt to auto-search if cached results for the default URL exist
     const defaultPage = parseInt(pageInput.value) || 1;
@@ -630,7 +652,8 @@ function setupArenaSearch() {
     } else {
       // Render a single block or a group of blocks with the same source URL
       const resolvedUrl = resolveResultUrl(firstResult);
-      const displayUrl = resolvedUrl.replace(/^https?:\/\//, '').replace(/^www\./, '');
+      const fullDisplayUrl = resolvedUrl.replace(/^https?:\/\//, '').replace(/^www\./, '');
+      const displayUrl = truncateUrlForDisplay(resolvedUrl, 60);
 
       const displayTitle = firstResult.title ||
                           (firstResult.source?.title) ||
@@ -675,7 +698,7 @@ function setupArenaSearch() {
                 ${displayTitle}
               </a>
               <div class="source-url-container">
-                <a href="${resolvedUrl}" target="_blank" class="source-url" title="${displayUrl}">
+                <a href="${resolvedUrl}" target="_blank" class="source-url" title="${fullDisplayUrl}">
                   ${displayUrl || 'No source URL'}
                 </a>
               </div>

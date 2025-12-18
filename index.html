@@ -27,33 +27,28 @@
             </div>
         </header>
 
-        <!-- Search Form -->
+        <!-- Search Toolbar -->
         <div class="search-form">
-            <div class="search-row">
+            <div class="search-toolbar">
                 <input type="url" id="arena-url-input" placeholder="enter url" class="search-input">
                 <button id="arena-search-btn" class="search-btn">→</button>
-            </div>
+                <input type="hidden" id="arena-per-page-input" value="25">
 
-            <div class="controls-row">
-                <div class="controls-left">
-                    <!-- Results per page toggle -->
-                    <div class="per-page-toggle" role="group">
-                        <button type="button" class="per-page-btn active" data-value="25">25</button>
-                        <button type="button" class="per-page-btn" data-value="50">50</button>
-                        <button type="button" class="per-page-btn" data-value="100">100</button>
-                    </div>
-                    <input type="hidden" id="arena-per-page-input" value="25">
-
-                    <div class="page-input-group">
-                        <span class="page-label">pg</span>
-                        <input type="number" id="arena-page-input" value="1" min="1" class="page-input">
-                    </div>
-
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="show-subdomains" checked>
-                        <span>subdomains</span>
-                    </label>
+                <div class="per-page-toggle" role="group">
+                    <button type="button" class="per-page-btn active" data-value="25">25</button>
+                    <button type="button" class="per-page-btn" data-value="50">50</button>
+                    <button type="button" class="per-page-btn" data-value="100">100</button>
                 </div>
+
+                <div class="page-input-group">
+                    <span class="page-label">pg</span>
+                    <input type="number" id="arena-page-input" value="1" min="1" class="page-input">
+                </div>
+
+                <label class="checkbox-label">
+                    <input type="checkbox" id="show-subdomains" checked>
+                    <span>subdomains</span>
+                </label>
 
                 <button id="auth-token-btn" class="auth-btn" title="API authentication">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
