@@ -1,5 +1,73 @@
 import { getArenaSearchResults } from './arena-api';
 
+// URL category type for sorting results
+type UrlCategory = 'exact' | 'subpath' | 'subdomain' | 'channel' | 'other';
+
+// Classify a URL relative to the search term
+function classifyUrl(sourceKey: string, searchTerm: string): UrlCategory {
+  // Channels are their own category
+  if (sourceKey.startsWith('channel:')) return 'channel';
+
+  // Parse the source URL
+  try {
+    const url = new URL(sourceKey.startsWith('http') ? sourceKey : `http://${sourceKey}`);
+    const hostname = url.hostname.replace(/^www\./, '');
+    const searchHost = searchTerm.replace(/^www\./, '').split('/')[0];
+
+    // Exact match: hostname equals search term, no meaningful path
+    if (hostname === searchHost && (url.pathname === '/' || url.pathname === '')) {
+      return 'exact';
+    }
+
+    // Subpath: hostname matches, has path
+    if (hostname === searchHost) {
+      return 'subpath';
+    }
+
+    // Subdomain: hostname ends with .searchHost
+    if (hostname.endsWith(`.${searchHost}`)) {
+      return 'subdomain';
+    }
+
+    return 'other';
+  } catch {
+    return 'other';
+  }
+}
+
+// Sort grouped results by category priority
+function sortGroupedResults(
+  groups: { [key: string]: any[] },
+  searchTerm: string
+): Array<{ key: string; results: any[]; category: UrlCategory }> {
+  const entries = Object.entries(groups);
+
+  // Classify each group
+  const classified = entries.map(([key, results]) => ({
+    key,
+    results,
+    category: classifyUrl(key, searchTerm)
+  }));
+
+  // Sort by category priority, then alphabetically
+  const priority: Record<UrlCategory, number> = {
+    exact: 0,
+    subpath: 1,
+    channel: 2,
+    subdomain: 3,
+    other: 4
+  };
+
+  classified.sort((a, b) => {
+    if (priority[a.category] !== priority[b.category]) {
+      return priority[a.category] - priority[b.category];
+    }
+    return a.key.localeCompare(b.key);
+  });
+
+  return classified;
+}
+
 // Arena Search Page functionality
 document.addEventListener('DOMContentLoaded', () => {
   setupArenaSearch();
@@ -8,7 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupArenaSearch() {
   const urlInput = document.getElementById('arena-url-input') as HTMLInputElement;
   const authTokenInput = document.getElementById('arena-auth-token-input') as HTMLInputElement;
-  const perPageInput = document.getElementById('arena-per-page-input') as HTMLSelectElement;
+  const perPageInput = document.getElementById('arena-per-page-input') as HTMLInputElement;
+  const perPageToggle = document.querySelector('.per-page-toggle');
   const pageInput = document.getElementById('arena-page-input') as HTMLInputElement;
   const searchBtn = document.getElementById('arena-search-btn') as HTMLButtonElement;
   const loadingDiv = document.getElementById('arena-loading') as HTMLDivElement;
@@ -25,7 +94,14 @@ function setupArenaSearch() {
   const saveAuthToken = document.getElementById('save-auth-token') as HTMLButtonElement;
   const clearAuthToken = document.getElementById('clear-auth-token') as HTMLButtonElement;
 
+  // Subdomain filter checkbox
+  const showSubdomainsCheckbox = document.getElementById('show-subdomains') as HTMLInputElement;
+
   let currentPreviewPopup: HTMLDivElement | null = null;
+
+  // Create lightbox element
+  const lightbox = createLightbox();
+  document.body.appendChild(lightbox);
 
   if (!urlInput || !searchBtn) return;
 
@@ -33,6 +109,8 @@ function setupArenaSearch() {
   loadSavedTokens();
   // Update auth button appearance based on token state
   updateAuthButtonState();
+  // Load saved subdomain preference
+  loadSubdomainPreference();
 
   const pathName = window.location.pathname;
   let initialUrlFromPath = '';
@@ -88,10 +166,9 @@ function setupArenaSearch() {
     authTokenPopup.classList.add('hidden');
   });
 
-  authTokenPopup.addEventListener('click', (e) => {
-    if (e.target === authTokenPopup) {
-      authTokenPopup.classList.add('hidden');
-    }
+  // Close on backdrop click
+  authTokenPopup.querySelector('.modal-backdrop')?.addEventListener('click', () => {
+    authTokenPopup.classList.add('hidden');
   });
 
   saveAuthToken.addEventListener('click', () => {
@@ -124,6 +201,44 @@ function setupArenaSearch() {
     }
   });
 
+  // Handle subdomain checkbox change
+  if (showSubdomainsCheckbox) {
+    showSubdomainsCheckbox.addEventListener('change', () => {
+      localStorage.setItem('arena_show_subdomains', showSubdomainsCheckbox.checked.toString());
+      // Re-render if we have results
+      if (!resultsDiv.classList.contains('hidden')) {
+        performSearch();
+      }
+    });
+  }
+
+  // Handle per-page toggle buttons
+  if (perPageToggle) {
+    perPageToggle.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('per-page-btn')) {
+        // Update active state
+        perPageToggle.querySelectorAll('.per-page-btn').forEach(btn => btn.classList.remove('active'));
+        target.classList.add('active');
+        // Update hidden input value
+        const value = target.dataset.value || '25';
+        perPageInput.value = value;
+      }
+    });
+  }
+
+  function loadSubdomainPreference() {
+    if (!showSubdomainsCheckbox) return;
+    const savedPref = localStorage.getItem('arena_show_subdomains');
+    if (savedPref !== null) {
+      showSubdomainsCheckbox.checked = savedPref === 'true';
+    }
+  }
+
+  function getShowSubdomainsPreference(): boolean {
+    return showSubdomainsCheckbox?.checked ?? true;
+  }
+
   function loadSavedTokens() {
     const savedAuthToken = localStorage.getItem('arena_auth_token');
 
@@ -136,11 +251,11 @@ function setupArenaSearch() {
     const hasAuthToken = authTokenInput.value.trim().length > 0;
 
     if (hasAuthToken) {
-      authTokenBtn.textContent = 'auth ✓';
-      authTokenBtn.style.color = '#238020';
+      authTokenBtn.classList.add('has-token');
+      authTokenBtn.title = 'API authenticated';
     } else {
-      authTokenBtn.textContent = 'auth';
-      authTokenBtn.style.color = '';
+      authTokenBtn.classList.remove('has-token');
+      authTokenBtn.title = 'API authentication';
     }
   }
 
@@ -227,11 +342,11 @@ function setupArenaSearch() {
     if (show) {
       loadingDiv.classList.remove('hidden');
       searchBtn.disabled = true;
-      searchBtn.textContent = 'searching...';
+      searchBtn.textContent = '...';
     } else {
       loadingDiv.classList.add('hidden');
       searchBtn.disabled = false;
-      searchBtn.textContent = 'search';
+      searchBtn.textContent = '→';
     }
   }
 
@@ -270,15 +385,11 @@ function setupArenaSearch() {
     const groupedResults = groupResultsByUrl(filteredResults);
     const totalGroups = Object.keys(groupedResults).length;
 
+    // Minimal summary - just counts
     summaryDiv.innerHTML = `
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span class="font-bold">${searchResults.total.toLocaleString()} results</span>
-          <span class="text-[#6B6B6B]">(showing ${startIndex}-${endIndex})</span>
-          <span class="text-[#6B6B6B]">page ${currentPage}</span>
-          ${totalGroups !== searchResults.results.length ? `<span class="text-[#238020]">• ${totalGroups} unique sources</span>` : ''}
-        </div>
-        <code class="bg-[#F7F7F7] px-2 py-1 rounded-[3px] text-xs break-all font-mono">${url}</code>
+      <div class="summary-minimal">
+        <span class="summary-stats">${searchResults.total} blocks</span>
+        ${totalGroups !== searchResults.results.length ? `<span class="summary-divider">·</span><span class="summary-stats">${totalGroups} sources</span>` : ''}
       </div>
     `;
 
@@ -298,15 +409,67 @@ function setupArenaSearch() {
       // Update title for no results
       document.title = `${url} - Are.na Search`;
     } else {
-      // Render grouped results
-      Object.entries(groupedResults).forEach(([sourceUrlKey, results]) => {
+      // Sort and categorize results
+      const sortedResults = sortGroupedResults(groupedResults, url);
+      const showSubdomains = getShowSubdomainsPreference();
+
+      // Track subdomain section for collapsible header
+      let subdomainSectionStarted = false;
+      let subdomainContainer: HTMLDivElement | null = null;
+
+      sortedResults.forEach(({ key: sourceUrlKey, results, category }) => {
+        // Skip subdomains if hidden
+        if (category === 'subdomain' && !showSubdomains) return;
+
+        // Add subdomain section header (collapsible)
+        if (category === 'subdomain' && !subdomainSectionStarted) {
+          subdomainSectionStarted = true;
+
+          // Create section header
+          const sectionHeader = document.createElement('div');
+          sectionHeader.className = 'col-span-full subdomain-section-header';
+          sectionHeader.innerHTML = `
+            <button class="subdomain-toggle flex items-center gap-2 text-xs text-[#6B6B6B] hover:text-[#333] w-full py-2">
+              <span class="toggle-icon transition-transform">▼</span>
+              <span>Subdomains</span>
+            </button>
+          `;
+          searchResultsDiv.appendChild(sectionHeader);
+
+          // Create container for subdomain results
+          subdomainContainer = document.createElement('div');
+          subdomainContainer.className = 'subdomain-results-container col-span-full grid grid-cols-1 lg:grid-cols-2 gap-3';
+          searchResultsDiv.appendChild(subdomainContainer);
+
+          // Add toggle handler
+          const toggleBtn = sectionHeader.querySelector('.subdomain-toggle');
+          if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+              const icon = sectionHeader.querySelector('.toggle-icon');
+              if (subdomainContainer?.classList.contains('hidden')) {
+                subdomainContainer.classList.remove('hidden');
+                if (icon) icon.textContent = '▼';
+              } else {
+                subdomainContainer?.classList.add('hidden');
+                if (icon) icon.textContent = '▶';
+              }
+            });
+          }
+        }
+
         const groupDiv = document.createElement('div');
         groupDiv.className = 'result-group p-3';
 
-        // Pass results directly, connections are now part of each result item
-        const content = renderGroupedResult(sourceUrlKey, results);
+        // Pass category for badge rendering
+        const content = renderGroupedResult(sourceUrlKey, results, category);
         groupDiv.innerHTML = content;
-        searchResultsDiv.appendChild(groupDiv);
+
+        // Append to subdomain container or main results
+        if (category === 'subdomain' && subdomainContainer) {
+          subdomainContainer.appendChild(groupDiv);
+        } else {
+          searchResultsDiv.appendChild(groupDiv);
+        }
       });
 
       // Add event listeners for image previews
@@ -424,11 +587,16 @@ function setupArenaSearch() {
     return groups;
   }
 
-  function renderGroupedResult(sourceKey: string, results: any[], connectionsData?: Map<string, any>): string {
+  function renderGroupedResult(sourceKey: string, results: any[], category?: UrlCategory): string {
     const firstResult = results[0];
     const isChannel = firstResult.__typename === 'Channel';
     const isMultipleBlocksWithSameSource = results.length > 1 && !isChannel;
     const blockHref = firstResult.href || ''; // Get block href for connections
+
+    // Exact match badge HTML
+    const exactBadge = category === 'exact'
+      ? '<span class="exact-match-badge">Exact match</span>'
+      : '';
 
     if (isChannel) {
       // Render channel
@@ -436,6 +604,7 @@ function setupArenaSearch() {
         <div class="space-y-2">
           <div class="flex items-center gap-2">
             <span class="block-type-badge">channel</span>
+            ${exactBadge}
             ${firstResult.visibility_name ? `<span class="text-xs ${getVisibilityClasses(firstResult.visibility_name)}">${firstResult.visibility_name.toLowerCase()}</span>` : ''}
           </div>
 
@@ -487,11 +656,12 @@ function setupArenaSearch() {
       const blockCount = results.length;
       const uniqueId = `blocks-${firstResult.id || Date.now()}`;
 
-      // Thumbnail or type badge
+      // Thumbnail (clickable to expand) or type badge
       const thumbnailOrBadge = previewImageUrl
-        ? `<div class="block-thumbnail">
+        ? `<button class="block-thumbnail clickable" onclick="openLightbox('${previewImageUrl}')" aria-label="View larger image">
              <img src="${previewImageUrl}" alt="" loading="lazy" />
-           </div>`
+             <span class="expand-icon">⤢</span>
+           </button>`
         : `<span class="block-type-badge">${typeLabel}</span>`;
 
       return `
@@ -520,28 +690,29 @@ function setupArenaSearch() {
             </div>
           `}
 
-          <div class="pt-1">
+          <div class="pt-1 flex items-center justify-between">
             <div class="blocks-toggle" data-target="${uniqueId}">
               <span class="blocks-toggle-icon">›</span>
               <span>${blockCount} block${blockCount !== 1 ? 's' : ''}</span>
             </div>
-            <div id="${uniqueId}" class="blocks-list">
-              <div class="blocks-list-inner">
-                <div class="blocks-list-content flex gap-2 flex-wrap">
-                  ${results.map(result => {
-                    if (result.href) {
-                      const blockId = result.href.split('/').pop();
-                      const blockPreviewImageUrl = result.image_url;
-                      return `
-                        <a href="https://are.na${result.href}" target="_blank"
-                           class="text-xs text-[#6B6B6B] hover:text-[#333] transition-colors font-mono whitespace-nowrap ${blockPreviewImageUrl ? 'block-link-with-preview' : ''}"
-                           ${blockPreviewImageUrl ? `data-preview-image-url="${blockPreviewImageUrl}"` : ''}>
-                          #${blockId}
-                        </a>`;
-                    }
-                    return '';
-                  }).join('')}
-                </div>
+            ${exactBadge}
+          </div>
+          <div id="${uniqueId}" class="blocks-list">
+            <div class="blocks-list-inner">
+              <div class="blocks-list-content flex gap-2 flex-wrap">
+                ${results.map(result => {
+                  if (result.href) {
+                    const blockId = result.href.split('/').pop();
+                    const blockPreviewImageUrl = result.image_url;
+                    return `
+                      <a href="https://are.na${result.href}" target="_blank"
+                         class="text-xs text-[#6B6B6B] hover:text-[#333] transition-colors font-mono whitespace-nowrap ${blockPreviewImageUrl ? 'block-link-with-preview' : ''}"
+                         ${blockPreviewImageUrl ? `data-preview-image-url="${blockPreviewImageUrl}"` : ''}>
+                        #${blockId}
+                      </a>`;
+                  }
+                  return '';
+                }).join('')}
               </div>
             </div>
           </div>
@@ -747,4 +918,62 @@ function setupArenaSearch() {
     };
     return labels[typeName] || 'Block';
   }
+
+  function createLightbox(): HTMLDivElement {
+    const lightbox = document.createElement('div');
+    lightbox.id = 'image-lightbox';
+    lightbox.className = 'lightbox hidden';
+    lightbox.innerHTML = `
+      <div class="lightbox-backdrop"></div>
+      <div class="lightbox-content">
+        <img src="" alt="" class="lightbox-image" />
+        <button class="lightbox-close" aria-label="Close">×</button>
+      </div>
+    `;
+
+    // Close on backdrop click
+    lightbox.querySelector('.lightbox-backdrop')?.addEventListener('click', () => {
+      hideLightbox(lightbox);
+    });
+
+    // Close on image click
+    lightbox.querySelector('.lightbox-image')?.addEventListener('click', () => {
+      hideLightbox(lightbox);
+    });
+
+    // Close on button click
+    lightbox.querySelector('.lightbox-close')?.addEventListener('click', () => {
+      hideLightbox(lightbox);
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) {
+        hideLightbox(lightbox);
+      }
+    });
+
+    return lightbox;
+  }
+
+  function showLightbox(lightbox: HTMLDivElement, imageUrl: string) {
+    const img = lightbox.querySelector('.lightbox-image') as HTMLImageElement;
+    if (img) {
+      img.src = imageUrl;
+    }
+    lightbox.classList.remove('hidden');
+    lightbox.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function hideLightbox(lightbox: HTMLDivElement) {
+    lightbox.classList.remove('active');
+    lightbox.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  // Make showLightbox available globally for onclick handlers
+  (window as any).openLightbox = (imageUrl: string) => {
+    showLightbox(lightbox, imageUrl);
+  };
 }

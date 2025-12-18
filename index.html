@@ -9,124 +9,100 @@
 </head>
 
 <body class="min-h-screen">
-    <div class="container mx-auto px-4 py-6 max-w-4xl">
+    <div class="search-container">
         <!-- Header -->
-        <header class="text-center mb-6">
-            <h1 class="text-lg font-bold mb-0.5">Are.na Search</h1>
-            <p class="text-xs text-[#6B6B6B]">find url references on Are.na</p>
-
-            <!-- Bookmarklet -->
-            <div class="mt-2">
+        <header class="search-header">
+            <div class="header-left">
+                <h1 class="site-title">Are.na Search</h1>
+                <span class="site-subtitle">find url references</span>
+            </div>
+            <div class="header-right">
                 <a href="javascript:location.href='https://arena.henryzoo.com/'+location.href"
-                   class="arena-btn cursor-move"
-                   style="pointer-events: auto;">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-3 h-3 mr-1">
+                   class="bookmarklet-link" title="Drag to bookmarks bar">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
                     </svg>
-                    drag to bookmarks
+                    <span>bookmarklet</span>
                 </a>
             </div>
         </header>
 
-        <!-- Main Search Interface -->
-        <div class="max-w-2xl mx-auto">
-            <!-- Search Form -->
-            <div class="border border-[#E8E8E8] rounded-[3px] p-4">
-                <!-- URL Input -->
-                <div class="mb-3">
-                    <input type="url" id="arena-url-input" placeholder="ciechanow.ski/gps"
-                        class="arena-input">
-                </div>
-
-                <!-- Controls Row -->
-                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <div class="flex items-center gap-2">
-                        <select id="arena-per-page-input" class="arena-select">
-                            <option value="25" selected>25 results</option>
-                            <option value="50">50 results</option>
-                            <option value="100">100 results</option>
-                        </select>
-
-                        <div class="flex items-center gap-1">
-                            <label for="arena-page-input" class="text-xs text-[#6B6B6B]">page:</label>
-                            <input type="number" id="arena-page-input" value="1" min="1"
-                                class="w-14 px-2 py-1.5 bg-[#F7F7F7] border-0 rounded-[3px] text-xs text-center focus:outline-none">
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 mt-2 sm:mt-0">
-                        <button id="arena-search-btn" class="arena-btn arena-btn-primary flex-grow sm:flex-grow-0">
-                            search
-                        </button>
-
-                        <!-- Auth Token Button -->
-                        <button id="auth-token-btn" class="arena-btn">
-                            auth
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Auth Token Popup -->
-                <div id="auth-token-popup"
-                    class="hidden fixed inset-0 bg-black/20 z-50 flex items-center justify-center p-4">
-                    <div class="bg-white rounded-[3px] p-4 max-w-sm w-full border border-[#E8E8E8]">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-bold">auth token</h3>
-                            <button id="close-auth-popup" class="text-[#6B6B6B] hover:text-[#333] text-lg leading-none">&times;</button>
-                        </div>
-
-                        <div class="mb-3">
-                            <input type="text" id="arena-auth-token-input" placeholder="paste your auth token here"
-                                class="arena-input text-sm">
-                        </div>
-
-                        <div class="text-xs text-[#6B6B6B] mb-3">
-                            <div class="mb-2">
-                                <span class="font-bold">getting rate limited?</span> add your auth token to increase API limits
-                            </div>
-                            <div class="space-y-0.5 text-[#6B6B6B]">
-                                <div>1. open any are.na page</div>
-                                <div>2. devtools &rarr; network &rarr; refresh</div>
-                                <div>3. find /graphql &rarr; copy x-auth-token</div>
-                            </div>
-                        </div>
-
-                        <div class="flex gap-2">
-                            <button id="save-auth-token" class="arena-btn arena-btn-primary flex-1">
-                                save
-                            </button>
-                            <button id="clear-auth-token" class="arena-btn">
-                                clear
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Status Messages -->
-                <div id="arena-loading" class="hidden">
-                    <div class="flex items-center gap-2 text-xs text-[#6B6B6B] p-2 bg-[#F7F7F7] rounded-[3px] mt-3">
-                        <div class="animate-spin w-3 h-3 border border-[#333] border-t-transparent rounded-full"></div>
-                        searching...
-                    </div>
-                </div>
-
-                <div id="arena-error" class="hidden p-2 bg-[#FEE] text-[#B33A3A] rounded-[3px] text-xs mt-3"></div>
+        <!-- Search Form -->
+        <div class="search-form">
+            <div class="search-row">
+                <input type="url" id="arena-url-input" placeholder="enter url" class="search-input">
+                <button id="arena-search-btn" class="search-btn">→</button>
             </div>
+
+            <div class="controls-row">
+                <div class="controls-left">
+                    <!-- Results per page toggle -->
+                    <div class="per-page-toggle" role="group">
+                        <button type="button" class="per-page-btn active" data-value="25">25</button>
+                        <button type="button" class="per-page-btn" data-value="50">50</button>
+                        <button type="button" class="per-page-btn" data-value="100">100</button>
+                    </div>
+                    <input type="hidden" id="arena-per-page-input" value="25">
+
+                    <div class="page-input-group">
+                        <span class="page-label">pg</span>
+                        <input type="number" id="arena-page-input" value="1" min="1" class="page-input">
+                    </div>
+
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="show-subdomains" checked>
+                        <span>subdomains</span>
+                    </label>
+                </div>
+
+                <button id="auth-token-btn" class="auth-btn" title="API authentication">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Status Messages -->
+            <div id="arena-loading" class="loading-indicator hidden">
+                <div class="loading-spinner"></div>
+                <span>searching...</span>
+            </div>
+
+            <div id="arena-error" class="error-message hidden"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="arena-results" class="results-section hidden">
+            <div class="results-header">
+                <div id="arena-summary"></div>
+                <div id="arena-pagination" class="pagination"></div>
+            </div>
+            <div id="arena-search-results" class="results-grid"></div>
         </div>
     </div>
 
-    <!-- Results Section -->
-    <div id="arena-results" class="hidden mt-4 px-4 max-w-4xl mx-auto pb-8">
-        <!-- Summary -->
-        <div id="arena-summary" class="border border-[#E8E8E8] rounded-[3px] p-3 mb-4"></div>
-
-        <!-- Pagination -->
-        <div class="flex justify-center mb-4">
-            <div id="arena-pagination" class="flex items-center gap-1"></div>
+    <!-- Auth Token Popup -->
+    <div id="auth-token-popup" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>auth token</h3>
+                <button id="close-auth-popup" class="modal-close">&times;</button>
+            </div>
+            <input type="text" id="arena-auth-token-input" placeholder="paste auth token" class="modal-input">
+            <div class="modal-help">
+                <strong>rate limited?</strong> add your auth token
+                <ol>
+                    <li>open any are.na page</li>
+                    <li>devtools → network → refresh</li>
+                    <li>find /graphql → copy x-auth-token</li>
+                </ol>
+            </div>
+            <div class="modal-actions">
+                <button id="save-auth-token" class="btn-primary">save</button>
+                <button id="clear-auth-token" class="btn-secondary">clear</button>
+            </div>
         </div>
-
-        <!-- Results Grid -->
-        <div id="arena-search-results" class="grid grid-cols-1 lg:grid-cols-2 gap-3"></div>
     </div>
 
     <script type="module" src="/src/arena-search.ts"></script>
