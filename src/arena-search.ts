@@ -752,20 +752,25 @@ function setupArenaSearch() {
 
     return `
       <div id="connections-for-${blockIdSuffix}" class="connections-section">
-        <div class="text-xs font-bold uppercase tracking-wide text-[#6B6B6B] mb-2">
-          Connections <span class="font-normal">(${uniqueConnections.length})</span>
+        <div class="connections-header">
+          Connections <span class="connections-count">(${uniqueConnections.length})</span>
         </div>
-        <div class="space-y-1.5 max-h-48 overflow-y-auto">
-          ${uniqueConnections.map(conn => `
+        <div class="connections-list">
+          ${uniqueConnections.map(conn => {
+            const date = new Date(conn.channel.added_to_at);
+            const month = date.toLocaleDateString('en-US', { month: 'short' });
+            const day = String(date.getDate()).padStart(2, '0');
+            const year = String(date.getFullYear()).slice(-2);
+            return `
             <div class="connection-row">
               <a href="https://are.na/channel/${conn.channel.slug}" target="_blank"
                  class="connection-title ${getVisibilityClasses(conn.channel.visibility_name)}">
                 ${conn.channel.title || 'untitled'}
               </a>
               <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="connection-user">${conn.channel.user?.name}</a>
-              <span class="connection-date">• ${new Date(conn.channel.added_to_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</span>
+              <span class="connection-date">${month}${day}'${year}</span>
             </div>
-          `).join('')}
+          `}).join('')}
         </div>
       </div>
     `;
