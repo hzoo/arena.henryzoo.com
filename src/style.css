@@ -2,8 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --arena-gray1: #F7F7F7;
+  --arena-gray2: #E8E8E8;
+  --arena-gray3: #6B6B6B;
+  --arena-gray6: #333;
+  --arena-green: #238020;
+  --arena-red: #B33A3A;
+  --arena-bg: #FFFFFF;
+  --arena-border: #E8E8E8;
+  --arena-radius: 3px;
+}
+
 body {
-  @apply bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50;
+  font-family: 'Arial', Helvetica, sans-serif;
+  background-color: var(--arena-bg);
+  color: var(--arena-gray6);
 }
 
 /* Custom scrollbar */
@@ -12,59 +26,103 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-stone-100 rounded-full;
+  background: var(--arena-gray1);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-stone-300 rounded-full;
+  background: var(--arena-gray2);
+  border-radius: var(--arena-radius);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-stone-400;
+  background: var(--arena-gray3);
 }
 
-/* Smooth focus transitions */
+/* Focus transitions */
 input:focus, select:focus, button:focus {
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
-/* Custom backdrop blur for better browser support */
-.backdrop-blur-sm {
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+/* Arena-style buttons */
+.arena-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  background-color: var(--arena-gray1);
+  color: var(--arena-gray6);
+  border: 1px solid transparent;
+  border-radius: var(--arena-radius);
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
 }
 
-/* Result card hover effects */
-.result-card {
-  @apply transition-all duration-200 ease-out;
+.arena-btn:hover {
+  background-color: var(--arena-gray2);
 }
 
-.result-card:hover {
-  @apply transform -translate-y-0.5 shadow-lg;
+.arena-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary button variant */
+.arena-btn-primary {
+  background-color: var(--arena-gray6);
+  color: white;
+}
+
+.arena-btn-primary:hover {
+  background-color: #000;
 }
 
 /* Pagination button styles */
 .pagination-btn {
-  @apply px-3 py-1.5 text-xs bg-white/70 border-0 rounded-lg transition-all hover:bg-white hover:shadow-sm;
+  padding: 4px 10px;
+  font-size: 12px;
+  background-color: var(--arena-gray1);
+  color: var(--arena-gray6);
+  border: 1px solid transparent;
+  border-radius: var(--arena-radius);
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.pagination-btn:hover {
+  background-color: var(--arena-gray2);
 }
 
 .pagination-btn.active {
-  @apply bg-gradient-to-r from-orange-400 to-rose-400 text-white shadow-sm;
+  background-color: var(--arena-gray6);
+  color: white;
 }
 
-/* Token input with saved state indicator */
-.token-saved {
-  @apply bg-green-50 border-green-200;
+/* Result card styles */
+.result-group {
+  background: white;
+  border: 1px solid var(--arena-border);
+  border-radius: var(--arena-radius);
+  transition: border-color 0.15s ease;
+}
+
+.result-group:hover {
+  border-color: var(--arena-gray3);
 }
 
 /* Smooth animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
 /* Loading spinner */
@@ -73,89 +131,39 @@ input:focus, select:focus, button:focus {
 }
 
 .animate-spin {
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
-/* Custom grid responsive breakpoints */
-@media (min-width: 1280px) {
-  .xl\:col-span-2 {
-    grid-column: span 2 / span 2;
-  }
-  
-  .xl\:col-span-1 {
-    grid-column: span 1 / span 1;
-  }
-  
-  .xl\:grid-cols-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-/* Enhanced text selection */
+/* Text selection */
 ::selection {
-  @apply bg-orange-200 text-stone-800;
+  background: var(--arena-gray2);
+  color: var(--arena-gray6);
 }
 
-/* Utility to hide scrollbars */
+/* Hide scrollbars utility */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-/* Subtle shadows and glows */
-.glass-card {
-  box-shadow: 
-    0 1px 3px 0 rgba(0, 0, 0, 0.1), 
-    0 1px 2px 0 rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Focus visible for accessibility */
 button:focus-visible, input:focus-visible, select:focus-visible {
-  @apply ring-2 ring-orange-300 ring-offset-1;
+  outline: 2px solid var(--arena-gray6);
+  outline-offset: 1px;
 }
 
-/* Smooth page transitions */
-.page-enter {
-  opacity: 0;
-  transform: translateY(20px);
+/* Line clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.page-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms, transform 300ms;
-}
-
-/* Result group hover effects */
-.result-group {
-  @apply transition-all duration-200 ease-out;
-}
-
-.result-group:hover {
-  @apply transform -translate-y-0.5 shadow-lg;
-}
-
-/* Block ID links styling */
-.result-group a[href*="/block/"] {
-  @apply transition-colors duration-150;
-}
-
-/* Improved spacing for grouped content */
-.result-group .space-y-4 > * + * {
-  margin-top: 1rem;
-}
-
-/* Enhanced tag styling */
-.result-group .px-2.py-1 {
-  @apply transition-all duration-150 hover:scale-105;
-}
-
-/* Better text line clamping */
 .line-clamp-3 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -163,40 +171,105 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   overflow: hidden;
 }
 
-/* Better wrapping for block IDs */
-.result-group .flex-wrap {
-  word-break: break-word;
-}
-
-/* Ensure proper spacing on mobile */
-@media (max-width: 640px) {
-  .container {
-    @apply px-4;
-  }
-}
-
-/* Improved text wrapping */
+/* Better text wrapping */
 .break-all {
   word-break: break-all;
   overflow-wrap: break-word;
 }
 
-/* Image preview popup styles */
+/* Image preview popup */
 .block-image-preview-popup {
   position: absolute;
   z-index: 1000;
   background-color: white;
-  border: 1px solid #ccc;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  padding: 5px;
-  border-radius: 4px;
-  width: 200px; /* Adjust as needed */
-  height: 150px; /* Adjust as needed */
-  overflow: hidden; /* Ensures image stays within bounds */
+  border: 1px solid var(--arena-border);
+  padding: 4px;
+  border-radius: var(--arena-radius);
+  width: 200px;
+  height: 150px;
+  overflow: hidden;
 }
 
 .block-image-preview-popup img {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* Scales image to fit, preserving aspect ratio */
+  object-fit: contain;
+}
+
+/* Input styles */
+.arena-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid var(--arena-border);
+  border-radius: var(--arena-radius);
+  font-size: 14px;
+  color: var(--arena-gray6);
+}
+
+.arena-input:focus {
+  outline: none;
+  border-color: var(--arena-gray6);
+}
+
+.arena-input::placeholder {
+  color: var(--arena-gray3);
+}
+
+/* Select styles */
+.arena-select {
+  padding: 6px 10px;
+  background: var(--arena-gray1);
+  border: 1px solid transparent;
+  border-radius: var(--arena-radius);
+  font-size: 12px;
+  color: var(--arena-gray6);
+  cursor: pointer;
+}
+
+.arena-select:focus {
+  outline: none;
+  border-color: var(--arena-gray6);
+}
+
+/* Block type badge */
+.block-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: var(--arena-radius);
+  background: var(--arena-gray1);
+  color: var(--arena-gray3);
+}
+
+/* Visibility badges */
+.visibility-public {
+  color: var(--arena-green);
+}
+
+.visibility-closed {
+  color: var(--arena-gray6);
+}
+
+.visibility-private {
+  color: var(--arena-red);
+}
+
+/* Connections section */
+.connections-section {
+  background: var(--arena-gray1);
+  border-radius: var(--arena-radius);
+  padding: 12px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
