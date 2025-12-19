@@ -23,10 +23,11 @@
                     <a href="#" class="example-link" data-url="ciechanow.ski">ciechanow.ski</a>
                     <a href="#" class="example-link" data-url="news.ycombinator.com">HN</a>
                 </span>
-                <a href="javascript:location.href='https://arena.henryzoo.com/'+location.href"
-                   class="bookmarklet-link" title="Drag to bookmarks bar">
+                <a href="javascript:location.href='https://arena.henryzoo.com/'+location.href" class="bookmarklet-link"
+                    title="Drag to bookmarks bar">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
                     </svg>
                     <span>bookmarklet</span>
                 </a>
@@ -58,7 +59,9 @@
 
                 <button id="auth-token-btn" class="auth-btn" title="API authentication">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z">
+                        </path>
                     </svg>
                 </button>
             </div>
@@ -76,9 +79,33 @@
         <div id="arena-results" class="results-section hidden">
             <div class="results-header">
                 <div id="arena-summary"></div>
-                <div id="arena-pagination" class="pagination"></div>
             </div>
-            <div id="arena-search-results" class="results-grid"></div>
+
+            <!-- Hero for exact matches -->
+            <div id="hero-section"></div>
+
+            <!-- Section divider for subpaths -->
+            <div id="subpath-header" class="section-header hidden">
+                <div class="flex items-center gap-2">
+                    <span class="section-title">Subpaths</span>
+                    <span id="subpath-count" class="section-count"></span>
+                </div>
+            </div>
+
+            <!-- Grid for subpaths -->
+            <div id="subpath-grid" class="results-grid"></div>
+
+            <!-- Existing results container (backward compat during transition) -->
+            <div id="arena-search-results" class="results-grid hidden"></div>
+
+            <!-- Infinite scroll trigger -->
+            <div id="scroll-sentinel" class="scroll-sentinel"></div>
+
+            <!-- Loading indicator for infinite scroll -->
+            <div id="loading-more" class="loading-more hidden">
+                <div class="loading-spinner"></div>
+                <span>loading more...</span>
+            </div>
         </div>
     </div>
 

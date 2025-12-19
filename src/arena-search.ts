@@ -115,6 +115,15 @@ function sortGroupedResults(
   return classified;
 }
 
+// Categorize results for the two-tier layout
+function categorizeResults(sortedResults: Array<{ key: string; results: any[]; category: UrlCategory }>) {
+  const exact = sortedResults.filter(r => r.category === 'exact');
+  const subpaths = sortedResults.filter(r => r.category === 'subpath');
+  const subdomains = sortedResults.filter(r => r.category === 'subdomain');
+  const other = sortedResults.filter(r => r.category === 'other' || r.category === 'channel');
+  return { exact, subpaths, subdomains, other };
+}
+
 // Arena Search Page functionality
 document.addEventListener('DOMContentLoaded', () => {
   setupArenaSearch();
@@ -150,6 +159,14 @@ function setupArenaSearch() {
   let currentSearchUrl: string = '';
   let currentSearchCache: SearchCache | null = null;
   let isLoadingMore: boolean = false;
+  let scrollObserver: IntersectionObserver | null = null;
+  // New DOM elements for two-tier layout
+  const heroSection = document.getElementById('hero-section') as HTMLDivElement;
+  const subpathHeader = document.getElementById('subpath-header') as HTMLDivElement;
+  const subpathCount = document.getElementById('subpath-count') as HTMLSpanElement;
+  const subpathGrid = document.getElementById('subpath-grid') as HTMLDivElement;
+  const scrollSentinel = document.getElementById('scroll-sentinel') as HTMLDivElement;
+  const loadingMoreDiv = document.getElementById('loading-more') as HTMLDivElement;
 
   // Create lightbox element
   const lightbox = createLightbox();
@@ -405,7 +422,12 @@ function setupArenaSearch() {
       // Get all accumulated blocks
       const allBlocks = getCachedBlocks(url);
 
+      // Update results
       await showResults(url, { total: currentSearchCache.totalFromAPI, results: allBlocks }, { per: perPage });
+
+      // Setup or refresh infinite scroll observer
+      setupInfiniteScroll();
+
       document.title = `${url} - Are.na Search`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -426,14 +448,11 @@ function setupArenaSearch() {
   }
 
   function showLoadingMore(show: boolean) {
-    const loadMoreBtn = document.getElementById('load-more-btn');
-    if (loadMoreBtn) {
+    if (loadingMoreDiv) {
       if (show) {
-        loadMoreBtn.textContent = 'loading...';
-        loadMoreBtn.setAttribute('disabled', 'true');
+        loadingMoreDiv.classList.remove('hidden');
       } else {
-        loadMoreBtn.textContent = 'Load More';
-        loadMoreBtn.removeAttribute('disabled');
+        loadingMoreDiv.classList.add('hidden');
       }
     }
   }
@@ -491,13 +510,16 @@ function setupArenaSearch() {
       </div>
     `;
 
-    // Show "Load More" instead of pagination
-    showLoadMoreButton(searchResults.total, loadedCount, perPage);
+    // Clear previous results
 
     // Clear previous results
     searchResultsDiv.innerHTML = '';
+    heroSection.innerHTML = '';
+    subpathGrid.innerHTML = '';
+    subpathHeader.classList.add('hidden');
 
     if (searchResults.results.length === 0) {
+      searchResultsDiv.classList.remove('hidden');
       searchResultsDiv.innerHTML = `
         <div class="col-span-full p-6 border border-[#E8E8E8] rounded-[3px] text-center text-[#6B6B6B]">
           <div class="text-xl mb-2">¯\\_(ツ)_/¯</div>
@@ -509,126 +531,180 @@ function setupArenaSearch() {
     } else {
       // Sort and categorize results
       const sortedResults = sortGroupedResults(groupedResults, url);
+      const { exact, subpaths, subdomains, other } = categorizeResults(sortedResults);
       const showSubdomains = getShowSubdomainsPreference();
 
-      // Track subdomain section for collapsible header
-      let subdomainSectionStarted = false;
-      let subdomainContainer: HTMLDivElement | null = null;
+      // Render Exact Match Results
+      if (exact.length > 0) {
+        renderExactResults(exact);
+      }
 
-      // Track other section for collapsible header
-      let otherSectionStarted = false;
-      let otherContainer: HTMLDivElement | null = null;
+      // Render Subpath Results
+      if (subpaths.length > 0) {
+        subpathHeader.classList.remove('hidden');
+        subpathCount.textContent = `(${subpaths.length})`;
+        subpathGrid.className = 'results-grid';
+        subpaths.forEach(({ key, results }) => {
+          const groupDiv = document.createElement('div');
+          groupDiv.className = 'result-group p-3';
+          groupDiv.innerHTML = renderGroupedResult(key, results, 'subpath');
+          subpathGrid.appendChild(groupDiv);
+        });
+      }
 
-      sortedResults.forEach(({ key: sourceUrlKey, results, category }) => {
-        // Skip subdomains if hidden
-        if (category === 'subdomain' && !showSubdomains) return;
+      // Render Subdomains and Other in the secondary list (old style)
+      const secondaryResults = [...subdomains, ...other];
+      const filteredSecondary = secondaryResults.filter(r => r.category !== 'subdomain' || showSubdomains);
 
-        // Add subdomain section header (collapsible)
-        if (category === 'subdomain' && !subdomainSectionStarted) {
-          subdomainSectionStarted = true;
+      if (filteredSecondary.length > 0) {
+        searchResultsDiv.classList.remove('hidden');
 
-          // Create section header
-          const sectionHeader = document.createElement('div');
-          sectionHeader.className = 'col-span-full subdomain-section-header';
-          sectionHeader.innerHTML = `
-            <button class="subdomain-toggle flex items-center gap-2 text-xs text-[#6B6B6B] hover:text-[#333] w-full py-2">
-              <span class="toggle-icon transition-transform">▼</span>
-              <span>Subdomains</span>
-            </button>
-          `;
-          searchResultsDiv.appendChild(sectionHeader);
+        // Track subdomain section for collapsible header
+        let subdomainSectionStarted = false;
+        let subdomainContainer: HTMLDivElement | null = null;
 
-          // Create container for subdomain results
-          subdomainContainer = document.createElement('div');
-          subdomainContainer.className = 'subdomain-results-container col-span-full grid grid-cols-1 lg:grid-cols-2 gap-3';
-          searchResultsDiv.appendChild(subdomainContainer);
+        // Track other section for collapsible header
+        let otherSectionStarted = false;
+        let otherContainer: HTMLDivElement | null = null;
 
-          // Add toggle handler
-          const toggleBtn = sectionHeader.querySelector('.subdomain-toggle');
-          if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
-              const icon = sectionHeader.querySelector('.toggle-icon');
-              if (subdomainContainer?.classList.contains('hidden')) {
-                subdomainContainer.classList.remove('hidden');
-                if (icon) icon.textContent = '▼';
-              } else {
-                subdomainContainer?.classList.add('hidden');
-                if (icon) icon.textContent = '▶';
-              }
-            });
+        filteredSecondary.forEach(({ key: sourceUrlKey, results, category }) => {
+          // Add subdomain section header (collapsible)
+          if (category === 'subdomain' && !subdomainSectionStarted) {
+            subdomainSectionStarted = true;
+
+            // Create section header
+            const sectionHeader = document.createElement('div');
+            sectionHeader.className = 'col-span-full subdomain-section-header';
+            sectionHeader.innerHTML = `
+              <button class="subdomain-toggle flex items-center gap-2 text-xs text-[#6B6B6B] hover:text-[#333] w-full py-2">
+                <span class="toggle-icon transition-transform">▼</span>
+                <span>Subdomains</span>
+              </button>
+            `;
+            searchResultsDiv.appendChild(sectionHeader);
+
+            // Create container for subdomain results
+            subdomainContainer = document.createElement('div');
+            subdomainContainer.className = 'subdomain-results-container col-span-full grid grid-cols-1 lg:grid-cols-2 gap-3';
+            searchResultsDiv.appendChild(subdomainContainer);
+
+            // Add toggle handler
+            const toggleBtn = sectionHeader.querySelector('.subdomain-toggle');
+            if (toggleBtn) {
+              toggleBtn.addEventListener('click', () => {
+                const icon = sectionHeader.querySelector('.toggle-icon');
+                if (subdomainContainer?.classList.contains('hidden')) {
+                  subdomainContainer.classList.remove('hidden');
+                  if (icon) icon.textContent = '▼';
+                } else {
+                  subdomainContainer?.classList.add('hidden');
+                  if (icon) icon.textContent = '▶';
+                }
+              });
+            }
           }
-        }
 
-        // Add other section header (collapsible, starts collapsed)
-        if (category === 'other' && !otherSectionStarted) {
-          otherSectionStarted = true;
+          // Add other section header (collapsible, starts collapsed)
+          if (category === 'other' && !otherSectionStarted) {
+            otherSectionStarted = true;
 
-          // Create section header
-          const sectionHeader = document.createElement('div');
-          sectionHeader.className = 'col-span-full subdomain-section-header';
-          sectionHeader.innerHTML = `
-            <button class="subdomain-toggle flex items-center gap-2 text-xs text-[#6B6B6B] hover:text-[#333] w-full py-2">
-              <span class="toggle-icon transition-transform">▶</span>
-              <span>Other</span>
-            </button>
-          `;
-          searchResultsDiv.appendChild(sectionHeader);
+            // Create section header
+            const sectionHeader = document.createElement('div');
+            sectionHeader.className = 'col-span-full subdomain-section-header';
+            sectionHeader.innerHTML = `
+              <button class="subdomain-toggle flex items-center gap-2 text-xs text-[#6B6B6B] hover:text-[#333] w-full py-2">
+                <span class="toggle-icon transition-transform">▶</span>
+                <span>Other</span>
+              </button>
+            `;
+            searchResultsDiv.appendChild(sectionHeader);
 
-          // Create container for other results (starts hidden)
-          otherContainer = document.createElement('div');
-          otherContainer.className = 'subdomain-results-container col-span-full grid grid-cols-1 lg:grid-cols-2 gap-3 hidden';
-          searchResultsDiv.appendChild(otherContainer);
+            // Create container for other results (starts hidden)
+            otherContainer = document.createElement('div');
+            otherContainer.className = 'subdomain-results-container col-span-full grid grid-cols-1 lg:grid-cols-2 gap-3 hidden';
+            searchResultsDiv.appendChild(otherContainer);
 
-          // Add toggle handler
-          const toggleBtn = sectionHeader.querySelector('.subdomain-toggle');
-          if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
-              const icon = sectionHeader.querySelector('.toggle-icon');
-              if (otherContainer?.classList.contains('hidden')) {
-                otherContainer.classList.remove('hidden');
-                if (icon) icon.textContent = '▼';
-              } else {
-                otherContainer?.classList.add('hidden');
-                if (icon) icon.textContent = '▶';
-              }
-            });
+            // Add toggle handler
+            const toggleBtn = sectionHeader.querySelector('.subdomain-toggle');
+            if (toggleBtn) {
+              toggleBtn.addEventListener('click', () => {
+                const icon = sectionHeader.querySelector('.toggle-icon');
+                if (otherContainer?.classList.contains('hidden')) {
+                  otherContainer.classList.remove('hidden');
+                  if (icon) icon.textContent = '▼';
+                } else {
+                  otherContainer?.classList.add('hidden');
+                  if (icon) icon.textContent = '▶';
+                }
+              });
+            }
           }
-        }
 
-        const groupDiv = document.createElement('div');
-        groupDiv.className = 'result-group p-3';
+          const groupDiv = document.createElement('div');
+          groupDiv.className = 'result-group p-3';
 
-        // Pass category for badge rendering
-        const content = renderGroupedResult(sourceUrlKey, results, category);
-        groupDiv.innerHTML = content;
+          // Pass category for badge rendering
+          const content = renderGroupedResult(sourceUrlKey, results, category);
+          groupDiv.innerHTML = content;
 
-        // Append to appropriate container
-        if (category === 'subdomain' && subdomainContainer) {
-          subdomainContainer.appendChild(groupDiv);
-        } else if (category === 'other' && otherContainer) {
-          otherContainer.appendChild(groupDiv);
-        } else {
-          searchResultsDiv.appendChild(groupDiv);
-        }
-      });
-
-      // Add event listeners for image previews
-      const blockLinksWithPreview = searchResultsDiv.querySelectorAll('.block-link-with-preview');
+          // Append to appropriate container
+          if (category === 'subdomain' && subdomainContainer) {
+            subdomainContainer.appendChild(groupDiv);
+          } else if (category === 'other' && otherContainer) {
+            otherContainer.appendChild(groupDiv);
+          } else {
+            searchResultsDiv.appendChild(groupDiv);
+          }
+        });
+      }
+    }
+    // Add event listeners for image previews
+    const previewContainers = [searchResultsDiv, subpathGrid];
+    previewContainers.forEach(container => {
+      const blockLinksWithPreview = container.querySelectorAll('.block-link-with-preview');
       blockLinksWithPreview.forEach(link => {
         link.addEventListener('mouseover', handleBlockPreviewMouseOver);
         link.addEventListener('mouseout', handleBlockPreviewMouseOut);
       });
 
       // Add event listeners for block ID toggles
-      const blocksToggles = searchResultsDiv.querySelectorAll('.blocks-toggle');
+      const blocksToggles = container.querySelectorAll('.blocks-toggle');
       blocksToggles.forEach(toggle => {
         toggle.addEventListener('click', handleBlocksToggleClick);
       });
-    }
+    });
 
     resultsDiv.classList.remove('hidden');
     resultsDiv.classList.add('fade-in');
+    updateScrollCues();
   }
+
+  function updateScrollCues() {
+    const sections = document.querySelectorAll('.connections-section');
+    sections.forEach(section => {
+      const list = section.querySelector('.connections-list') as HTMLElement | null;
+      if (!list) return;
+      if (!list.dataset.scrollCueBound) {
+        list.dataset.scrollCueBound = 'true';
+        list.addEventListener('scroll', () => updateScrollCues());
+      }
+      const canScrollY = list.scrollHeight > list.clientHeight + 1;
+      const canScrollX = list.scrollWidth > list.clientWidth + 1;
+      const maxScrollLeft = list.scrollWidth - list.clientWidth;
+      const showScrollX = canScrollX && list.scrollLeft < maxScrollLeft - 1;
+      section.classList.toggle('is-scrollable', canScrollY);
+      section.classList.toggle('is-scrollable-x', showScrollX);
+    });
+  }
+
+  let resizeTimer: number | undefined;
+  window.addEventListener('resize', () => {
+    if (resizeTimer) {
+      window.clearTimeout(resizeTimer);
+    }
+    resizeTimer = window.setTimeout(() => updateScrollCues(), 120);
+  });
+
 
   function handleBlocksToggleClick(event: Event) {
     const toggle = event.currentTarget as HTMLElement;
@@ -686,16 +762,16 @@ function setupArenaSearch() {
     if (result.__typename === 'Channel') {
       return `https://are.na/channel/${result.slug || result.id}`;
     }
-    
+
     // Check various sources for a URL
     const url = result.source_url || result.source?.url;
     if (url) return url;
-    
+
     // Fallback to Are.na block page if no source URL is found
     if (result.href) {
       return `https://are.na${result.href}`;
     }
-    
+
     return '';
   }
 
@@ -711,7 +787,7 @@ function setupArenaSearch() {
       } else {
         // Group blocks by their normalized source URL
         const resolvedUrl = resolveResultUrl(result);
-        
+
         // If it's a block without a source URL, we still want to group it 
         // if it has an Are.na href, but we should probably filter these out 
         // earlier if we only want "URL references".
@@ -774,8 +850,8 @@ function setupArenaSearch() {
       const displayUrl = truncateUrlForDisplay(resolvedUrl, 60);
 
       const rawTitle = firstResult.title ||
-                          (firstResult.source?.title) ||
-                          (firstResult.source_url ? new URL(firstResult.source_url).hostname : 'Untitled Block');
+        (firstResult.source?.title) ||
+        (firstResult.source_url ? new URL(firstResult.source_url).hostname : 'Untitled Block');
       const displayTitle = truncateTitle(rawTitle, 80);
 
       const blockType = firstResult.__typename || 'Block';
@@ -825,9 +901,9 @@ function setupArenaSearch() {
           </div>
 
           ${allGroupConnections && allGroupConnections.length > 0 ? `
-            ${renderConnectionsForGroup(allGroupConnections, blockHref)}
+            ${renderConnectionsForGroup(allGroupConnections, blockHref, category)}
           ` : `
-            <div class="connections-section">
+            <div class="connections-section${category === 'exact' ? ' connections-section--exact' : ''}">
               <p class="text-xs text-[#6B6B6B] italic">no connections found</p>
             </div>
           `}
@@ -843,18 +919,18 @@ function setupArenaSearch() {
             <div class="blocks-list-inner">
               <div class="blocks-list-content flex gap-2 flex-wrap">
                 ${results.map(result => {
-                  if (result.href) {
-                    const blockId = result.href.split('/').pop();
-                    const blockPreviewImageUrl = result.image_url;
-                    return `
+        if (result.href) {
+          const blockId = result.href.split('/').pop();
+          const blockPreviewImageUrl = result.image_url;
+          return `
                       <a href="https://are.na${result.href}" target="_blank"
                          class="text-xs text-[#6B6B6B] hover:text-[#333] transition-colors font-mono whitespace-nowrap ${blockPreviewImageUrl ? 'block-link-with-preview' : ''}"
                          ${blockPreviewImageUrl ? `data-preview-image-url="${blockPreviewImageUrl}"` : ''}>
                         #${blockId}
                       </a>`;
-                  }
-                  return '';
-                }).join('')}
+        }
+        return '';
+      }).join('')}
               </div>
             </div>
           </div>
@@ -863,7 +939,7 @@ function setupArenaSearch() {
     }
   }
 
-  function renderConnectionsForGroup(connections: any[], blockHref?: string): string {
+  function renderConnectionsForGroup(connections: any[], blockHref?: string, category?: UrlCategory): string {
     const connectionsToRender = connections;
 
     if (!connectionsToRender || connectionsToRender.length === 0) {
@@ -893,52 +969,98 @@ function setupArenaSearch() {
     const blockIdSuffix = blockHref ? blockHref.split('/').pop() : Date.now();
 
     return `
-      <div id="connections-for-${blockIdSuffix}" class="connections-section">
+      <div id="connections-for-${blockIdSuffix}" class="connections-section${category === 'exact' ? ' connections-section--exact' : ''}">
         <div class="connections-header">
           Connections <span class="connections-count">(${uniqueConnections.length})</span>
         </div>
         <div class="connections-list">
           ${uniqueConnections.map(conn => {
-            const date = new Date(conn.channel.added_to_at);
-            const month = date.toLocaleDateString('en-US', { month: 'short' });
-            const day = String(date.getDate()).padStart(2, '0');
-            const year = String(date.getFullYear()).slice(-2);
-            return `
-            <div class="connection-row">
-              <a href="https://are.na/channel/${conn.channel.slug}" target="_blank"
-                 class="connection-title ${getVisibilityClasses(conn.channel.visibility_name)}">
-                ${conn.channel.title || 'untitled'}
-              </a>
-              <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="connection-user">${conn.channel.user?.name}</a>
-              <span class="connection-date">${month}${day}'${year}</span>
-            </div>
-          `}).join('')}
+      let dateStr = 'unknown';
+      const now = Date.now();
+      if (conn.channel.added_to_at) {
+        const date = new Date(conn.channel.added_to_at);
+        if (!isNaN(date.getTime())) {
+          const diffMs = Math.max(0, now - date.getTime());
+          const diffMins = Math.floor(diffMs / (60 * 1000));
+          const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+          const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+          const diffWeeks = Math.floor(diffDays / 7);
+          const diffMonths = Math.floor(diffDays / 30);
+          const diffYears = Math.floor(diffDays / 365);
+
+          if (diffMins < 1) {
+            dateStr = '<1m';
+          } else if (diffMins < 60) {
+            dateStr = `${diffMins}m`;
+          } else if (diffHours < 24) {
+            dateStr = `${diffHours}h`;
+          } else if (diffDays < 7) {
+            dateStr = `${diffDays}d`;
+          } else if (diffWeeks < 5) {
+            dateStr = `${diffWeeks}w`;
+          } else if (diffMonths < 12) {
+            dateStr = `${diffMonths}mo`;
+          } else {
+            dateStr = `${diffYears}y`;
+          }
+        }
+      }
+
+      return `
+              <div class="connection-row">
+                <a href="https://are.na/channel/${conn.channel.slug}" target="_blank"
+                   class="connection-title ${getVisibilityClasses(conn.channel.visibility_name)}">
+                  ${conn.channel.title || 'untitled'}
+                </a>
+                <div class="connection-meta">
+                  <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="connection-user">${conn.channel.user?.name}</a>
+                  <span class="connection-date">${dateStr}</span>
+                </div>
+              </div>
+            `;
+    }).join('')}
         </div>
       </div>
     `;
   }
 
-  function showLoadMoreButton(total: number, loaded: number, perPage: number) {
-    const hasMore = loaded < total;
-
-    if (!hasMore) {
-      paginationDiv.innerHTML = '';
-      return;
+  function setupInfiniteScroll() {
+    if (scrollObserver) {
+      scrollObserver.disconnect();
     }
 
-    paginationDiv.innerHTML = `
-      <button id="load-more-btn" class="load-more-btn" onclick="loadMoreResults()">
-        Load More
-      </button>
-    `;
+    if (!scrollSentinel) return;
+
+    scrollObserver = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting && !isLoadingMore && currentSearchCache && hasMorePages(currentSearchCache)) {
+        console.log('Sentinel intersecting, loading more...');
+        performSearch({ loadMore: true });
+      }
+    }, {
+      rootMargin: '200px'
+    });
+
+    scrollObserver.observe(scrollSentinel);
   }
 
-  // Make loadMoreResults function global for onclick handlers
-  (window as any).loadMoreResults = () => {
-    if (!isLoadingMore) {
-      performSearch({ loadMore: true });
-    }
-  };
+  function renderExactResults(exactMatches: Array<{ key: string; results: any[] }>) {
+    if (exactMatches.length === 0) return;
+
+    heroSection.innerHTML = '';
+
+    const grid = document.createElement('div');
+    grid.className = 'results-grid';
+
+    exactMatches.forEach(({ key, results }) => {
+      const groupDiv = document.createElement('div');
+      groupDiv.className = 'result-group p-3';
+      groupDiv.innerHTML = renderGroupedResult(key, results, 'exact');
+      grid.appendChild(groupDiv);
+    });
+
+    heroSection.appendChild(grid);
+  }
 
   function handleBlockPreviewMouseOver(event: Event) {
     if (currentPreviewPopup) {
