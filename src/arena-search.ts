@@ -585,7 +585,7 @@ function setupArenaSearch() {
 
             // Create container for subdomain results
             subdomainContainer = document.createElement('div');
-            subdomainContainer.className = 'subdomain-results-container col-span-full grid grid-cols-1 lg:grid-cols-2 gap-3';
+            subdomainContainer.className = 'subdomain-results-container col-span-full';
             searchResultsDiv.appendChild(subdomainContainer);
 
             // Add toggle handler
@@ -621,7 +621,7 @@ function setupArenaSearch() {
 
             // Create container for other results (starts hidden)
             otherContainer = document.createElement('div');
-            otherContainer.className = 'subdomain-results-container col-span-full grid grid-cols-1 lg:grid-cols-2 gap-3 hidden';
+            otherContainer.className = 'subdomain-results-container col-span-full hidden';
             searchResultsDiv.appendChild(otherContainer);
 
             // Add toggle handler
@@ -959,10 +959,13 @@ function setupArenaSearch() {
 
     const uniqueConnections = Array.from(uniqueConnectionsMap.values());
 
-    // Sort connections by date added (newest first)
+    // Sort connections by connection time (newest first)
     uniqueConnections.sort((a, b) => {
-      const dateA = new Date(a.channel.added_to_at).getTime();
-      const dateB = new Date(b.channel.added_to_at).getTime();
+      const dateA = parseArenaTimestamp(a.created_at || a.channel?.added_to_at);
+      const dateB = parseArenaTimestamp(b.created_at || b.channel?.added_to_at);
+      if (dateA === null && dateB === null) return 0;
+      if (dateA === null) return 1;
+      if (dateB === null) return -1;
       return dateB - dateA;
     });
 
@@ -978,8 +981,10 @@ function setupArenaSearch() {
       let dateStr = 'unknown';
       let dateTitle = '';
       const now = Date.now();
-      if (conn.channel.added_to_at) {
-        const date = new Date(conn.channel.added_to_at);
+      const connectionTimestamp = conn.created_at || conn.channel.added_to_at;
+      const parsedTimestamp = parseArenaTimestamp(connectionTimestamp);
+      if (parsedTimestamp !== null) {
+        const date = new Date(parsedTimestamp);
         if (!isNaN(date.getTime())) {
           dateTitle = date.toLocaleString('en-US', {
             year: 'numeric',
@@ -988,7 +993,7 @@ function setupArenaSearch() {
             hour: '2-digit',
             minute: '2-digit'
           });
-          const diffMs = Math.max(0, now - date.getTime());
+          const diffMs = Math.max(0, now - parsedTimestamp);
           const diffMins = Math.floor(diffMs / (60 * 1000));
           const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
           const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
@@ -1030,6 +1035,16 @@ function setupArenaSearch() {
         </div>
       </div>
     `;
+  }
+
+  function parseArenaTimestamp(value?: string): number | null {
+    if (!value) return null;
+    const direct = Date.parse(value);
+    if (!Number.isNaN(direct)) return direct;
+    const normalized = value.replace(' UTC', 'Z').replace(' ', 'T');
+    const normalizedParsed = Date.parse(normalized);
+    if (!Number.isNaN(normalizedParsed)) return normalizedParsed;
+    return null;
   }
 
   function setupInfiniteScroll() {

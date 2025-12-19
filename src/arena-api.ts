@@ -19,6 +19,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
           title
           image_url
           connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            created_at
             user {
               name
               slug
@@ -45,6 +46,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             title
           }
           connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            created_at
             user { name slug }
             channel {
               user { name slug }
@@ -64,6 +66,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             title
           }
           connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            created_at
             user { name slug }
             channel {
               user { name slug }
@@ -83,6 +86,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             title
           }
           connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            created_at
             user { name slug }
             channel {
               user { name slug }
@@ -102,6 +106,7 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             title
           }
           connections(filter: ALL, per: $connectionsPerBlock, page: 1) {
+            created_at
             user { name slug }
             channel {
               user { name slug }
@@ -159,6 +164,7 @@ interface User { // Add User interface for the new connections structure
 }
 
 interface ConnectionInResult { // Renamed from Connection to avoid conflict if a global Connection type exists
+  created_at?: string;
   user: User;
   channel: Channel;
 }
