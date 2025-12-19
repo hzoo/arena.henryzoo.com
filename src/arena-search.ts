@@ -329,6 +329,9 @@ function setupArenaSearch() {
       url = url.slice(0, -1);
     }
 
+    // Update URL for deep linking (without adding to history)
+    history.replaceState(null, '', `/${encodeURIComponent(url)}`);
+
     showLoading(true);
     hideError();
     hideResults();
