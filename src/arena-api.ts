@@ -25,13 +25,8 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
               slug
             }
             channel {
-              user {
-                name
-                slug
-              }
               title
               slug
-              added_to_at
               visibility_name
             }
           }
@@ -49,10 +44,8 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             created_at
             user { name slug }
             channel {
-              user { name slug }
               title
               slug
-              added_to_at
               visibility_name
             }
           }
@@ -69,10 +62,8 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             created_at
             user { name slug }
             channel {
-              user { name slug }
               title
               slug
-              added_to_at
               visibility_name
             }
           }
@@ -89,10 +80,8 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             created_at
             user { name slug }
             channel {
-              user { name slug }
               title
               slug
-              added_to_at
               visibility_name
             }
           }
@@ -109,10 +98,8 @@ query LinkMentions($url: String!, $per: Int, $page: Int, $connectionsPerBlock: I
             created_at
             user { name slug }
             channel {
-              user { name slug }
               title
               slug
-              added_to_at
               visibility_name
             }
           }
@@ -149,9 +136,7 @@ interface Channel { // Keep Channel as it's used in the new connections structur
   id?: string | number;
   title: string;
   slug: string;
-  added_to_at: string; // Keep as it's part of the new connections structure
   visibility_name: 'PUBLIC' | 'CLOSED' | 'PRIVATE';
-  user: User; // Channel has a user associated with it
   counts?: {
     contents: number;
   };
@@ -241,32 +226,6 @@ async function arena<T>(query: string, variables: any, options?: {
   return result.data;
 }
 
-// Main function to search for blocks containing a URL
-export async function searchBlocksForUrl(url: string, options?: { 
-  appToken?: string, 
-  authToken?: string,
-  page?: number,
-  per?: number 
-}): Promise<any> {
-  try {
-    const variables = {
-      term: { facet: url },
-      where: [{ facet: "ALL" }],
-      what: { facets: ["ALL"] },
-      fields: { facets: ["URL"] },
-      order: { facet: "SCORE", dir: "DESC" },
-      page: options?.page || 1,
-      per: options?.per || 24
-    };
-
-    const result = await arena<any>(SEARCH_RESULTS_QUERY, variables, options);
-    return result.searches.advanced;
-  } catch (error) {
-    console.error('Error searching for blocks:', error);
-    throw error;
-  }
-}
-
 // Fetch search results from Arena API (no caching - handled by arena-cache.ts)
 export async function getArenaSearchResults(url: string, options?: {
   appToken?: string,
@@ -283,7 +242,7 @@ export async function getArenaSearchResults(url: string, options?: {
       url: url,
       page: options?.page || 1,
       per: options?.per || 25,
-      connectionsPerBlock: options?.connectionsPerBlock || 50
+      connectionsPerBlock: options?.connectionsPerBlock || 25
     };
 
     const result = await arena<any>(SEARCH_RESULTS_QUERY, variables, options);

@@ -39,31 +39,34 @@
             <div class="search-toolbar">
                 <input type="url" id="arena-url-input" placeholder="enter url" class="search-input">
                 <button id="arena-search-btn" class="search-btn">→</button>
-                <input type="hidden" id="arena-per-page-input" value="50">
+                <input type="hidden" id="arena-per-page-input" value="25">
 
                 <div class="per-page-toggle" role="group">
-                    <button type="button" class="per-page-btn" data-value="25">25</button>
-                    <button type="button" class="per-page-btn active" data-value="50">50</button>
+                    <button type="button" class="per-page-btn active" data-value="25">25</button>
+                    <button type="button" class="per-page-btn" data-value="50">50</button>
                     <button type="button" class="per-page-btn" data-value="100">100</button>
                 </div>
 
-                <div class="page-input-group">
-                    <span class="page-label">pg</span>
-                    <input type="number" id="arena-page-input" value="1" min="1" class="page-input">
-                </div>
+                <button id="advanced-toggle" class="advanced-toggle" type="button">advanced</button>
 
                 <label class="checkbox-label">
                     <input type="checkbox" id="show-subdomains" checked>
                     <span>subdomains</span>
                 </label>
 
-                <button id="auth-token-btn" class="auth-btn" title="API authentication">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z">
-                        </path>
-                    </svg>
-                </button>
+                <div id="advanced-panel" class="advanced-panel hidden">
+                    <div class="page-input-group">
+                        <span class="page-label">jump to pg</span>
+                        <input type="number" id="arena-page-input" value="1" min="1" class="page-input">
+                    </div>
+                    <button id="auth-token-btn" class="auth-btn" title="API authentication">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Status Messages -->
@@ -79,6 +82,7 @@
         <div id="arena-results" class="results-section hidden">
             <div class="results-header">
                 <div id="arena-summary"></div>
+                <button id="load-more-btn" class="load-more-btn hidden">load more</button>
             </div>
 
             <!-- Hero for exact matches -->
@@ -98,14 +102,6 @@
             <!-- Existing results container (backward compat during transition) -->
             <div id="arena-search-results" class="results-grid hidden"></div>
 
-            <!-- Infinite scroll trigger -->
-            <div id="scroll-sentinel" class="scroll-sentinel"></div>
-
-            <!-- Loading indicator for infinite scroll -->
-            <div id="loading-more" class="loading-more hidden">
-                <div class="loading-spinner"></div>
-                <span>loading more...</span>
-            </div>
         </div>
     </div>
 

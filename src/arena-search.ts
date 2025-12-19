@@ -145,6 +145,8 @@ function setupArenaSearch() {
 
   // Auth token popup elements
   const authTokenBtn = document.getElementById('auth-token-btn') as HTMLButtonElement;
+  const advancedToggle = document.getElementById('advanced-toggle') as HTMLButtonElement;
+  const advancedPanel = document.getElementById('advanced-panel') as HTMLDivElement;
   const authTokenPopup = document.getElementById('auth-token-popup') as HTMLDivElement;
   const closeAuthPopup = document.getElementById('close-auth-popup') as HTMLButtonElement;
   const saveAuthToken = document.getElementById('save-auth-token') as HTMLButtonElement;
@@ -159,14 +161,12 @@ function setupArenaSearch() {
   let currentSearchUrl: string = '';
   let currentSearchCache: SearchCache | null = null;
   let isLoadingMore: boolean = false;
-  let scrollObserver: IntersectionObserver | null = null;
   // New DOM elements for two-tier layout
   const heroSection = document.getElementById('hero-section') as HTMLDivElement;
   const subpathHeader = document.getElementById('subpath-header') as HTMLDivElement;
   const subpathCount = document.getElementById('subpath-count') as HTMLSpanElement;
   const subpathGrid = document.getElementById('subpath-grid') as HTMLDivElement;
-  const scrollSentinel = document.getElementById('scroll-sentinel') as HTMLDivElement;
-  const loadingMoreDiv = document.getElementById('loading-more') as HTMLDivElement;
+  const loadMoreBtn = document.getElementById('load-more-btn') as HTMLButtonElement;
 
   // Create lightbox element
   const lightbox = createLightbox();
@@ -211,6 +211,13 @@ function setupArenaSearch() {
     authTokenPopup.classList.remove('hidden');
     authTokenInput.focus();
   });
+
+  if (advancedToggle && advancedPanel) {
+    advancedToggle.addEventListener('click', () => {
+      const isHidden = advancedPanel.classList.contains('hidden');
+      advancedPanel.classList.toggle('hidden', !isHidden);
+    });
+  }
 
   closeAuthPopup.addEventListener('click', () => {
     authTokenPopup.classList.add('hidden');
@@ -273,6 +280,7 @@ function setupArenaSearch() {
         // Update hidden input value
         const value = target.dataset.value || '25';
         perPageInput.value = value;
+        pageInput.value = '1';
       }
     });
   }
@@ -290,6 +298,21 @@ function setupArenaSearch() {
       }
     });
   });
+
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', () => {
+      if (!isLoadingMore && currentSearchCache && hasMorePages(currentSearchCache)) {
+        performSearch({ loadMore: true });
+      }
+    });
+  }
+
+  summaryDiv.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (!target || target.id !== 'refresh-cache-btn') return;
+    performSearch({ forceRefresh: true });
+  });
+
 
   function loadSubdomainPreference() {
     if (!showSubdomainsCheckbox) return;
@@ -385,7 +408,7 @@ function setupArenaSearch() {
 
         // Don't fetch if cache is recent (within 15 minutes)
         const cacheAgeMs = Date.now() - existingCache.timestamp;
-        if (cacheAgeMs < 15 * 60 * 1000) {
+        if (cacheAgeMs < 5 * 60 * 1000) {
           return;
         }
         // Otherwise continue to fetch fresh data in background
@@ -425,8 +448,7 @@ function setupArenaSearch() {
       // Update results
       await showResults(url, { total: currentSearchCache.totalFromAPI, results: allBlocks }, { per: perPage });
 
-      // Setup or refresh infinite scroll observer
-      setupInfiniteScroll();
+      updateLoadMoreState();
 
       document.title = `${url} - Are.na Search`;
     } catch (error) {
@@ -448,13 +470,9 @@ function setupArenaSearch() {
   }
 
   function showLoadingMore(show: boolean) {
-    if (loadingMoreDiv) {
-      if (show) {
-        loadingMoreDiv.classList.remove('hidden');
-      } else {
-        loadingMoreDiv.classList.add('hidden');
-      }
-    }
+    if (!loadMoreBtn) return;
+    loadMoreBtn.disabled = show;
+    loadMoreBtn.textContent = show ? 'loading…' : 'load more';
   }
 
   function showLoading(show: boolean) {
@@ -502,11 +520,14 @@ function setupArenaSearch() {
     const loadedCount = searchResults.results.length;
     const cacheAgeText = currentSearchCache ? getCacheAge(currentSearchCache) : '';
 
+    const loadedPages = currentSearchCache?.lastPage || 1;
     summaryDiv.innerHTML = `
       <div class="summary-minimal">
         <span class="summary-stats">${loadedCount} of ${totalDisplay} blocks</span>
         ${totalGroups !== searchResults.results.length ? `<span class="summary-divider">·</span><span class="summary-stats">${totalGroups} sources</span>` : ''}
+        <span class="summary-divider">·</span><span class="summary-stats">pages 1–${loadedPages}</span>
         ${cacheAgeText ? `<span class="summary-divider">·</span><span class="summary-cache-age">${cacheAgeText}</span>` : ''}
+        ${cacheAgeText ? `<button id="refresh-cache-btn" class="summary-refresh-btn" title="Refresh cache">refresh</button>` : ''}
       </div>
     `;
 
@@ -613,7 +634,7 @@ function setupArenaSearch() {
             sectionHeader.className = 'col-span-full subdomain-section-header';
             sectionHeader.innerHTML = `
               <button class="subdomain-toggle flex items-center gap-2 text-xs text-[#6B6B6B] hover:text-[#333] w-full py-2">
-                <span class="toggle-icon transition-transform">▶</span>
+                <span class="toggle-icon transition-transform">▼</span>
                 <span>Other</span>
               </button>
             `;
@@ -621,7 +642,7 @@ function setupArenaSearch() {
 
             // Create container for other results (starts hidden)
             otherContainer = document.createElement('div');
-            otherContainer.className = 'subdomain-results-container col-span-full hidden';
+            otherContainer.className = 'subdomain-results-container col-span-full';
             searchResultsDiv.appendChild(otherContainer);
 
             // Add toggle handler
@@ -659,7 +680,7 @@ function setupArenaSearch() {
       }
     }
     // Add event listeners for image previews
-    const previewContainers = [searchResultsDiv, subpathGrid];
+    const previewContainers = [searchResultsDiv, subpathGrid, heroSection];
     previewContainers.forEach(container => {
       const blockLinksWithPreview = container.querySelectorAll('.block-link-with-preview');
       blockLinksWithPreview.forEach(link => {
@@ -677,6 +698,18 @@ function setupArenaSearch() {
     resultsDiv.classList.remove('hidden');
     resultsDiv.classList.add('fade-in');
     updateScrollCues();
+    updateLoadMoreState();
+  }
+
+  function updateLoadMoreState() {
+    if (!loadMoreBtn) return;
+    if (currentSearchCache && hasMorePages(currentSearchCache)) {
+      loadMoreBtn.classList.remove('hidden');
+      const nextPage = currentSearchCache.lastPage + 1;
+      loadMoreBtn.textContent = `load page ${nextPage}`;
+    } else {
+      loadMoreBtn.classList.add('hidden');
+    }
   }
 
   function updateScrollCues() {
@@ -949,8 +982,8 @@ function setupArenaSearch() {
     // Deduplicate connections by user + channel slug combination
     const uniqueConnectionsMap = new Map<string, any>();
     connectionsToRender.forEach(conn => {
-      if (conn && conn.channel && conn.channel.slug && conn.channel.user && conn.channel.user.slug) {
-        const key = `${conn.channel.user.slug}/${conn.channel.slug}`;
+      if (conn && conn.channel && conn.channel.slug && conn.user && conn.user.slug) {
+        const key = `${conn.user.slug}/${conn.channel.slug}`;
         if (!uniqueConnectionsMap.has(key)) {
           uniqueConnectionsMap.set(key, conn);
         }
@@ -961,8 +994,8 @@ function setupArenaSearch() {
 
     // Sort connections by connection time (newest first)
     uniqueConnections.sort((a, b) => {
-      const dateA = parseArenaTimestamp(a.created_at || a.channel?.added_to_at);
-      const dateB = parseArenaTimestamp(b.created_at || b.channel?.added_to_at);
+      const dateA = parseArenaTimestamp(a.created_at);
+      const dateB = parseArenaTimestamp(b.created_at);
       if (dateA === null && dateB === null) return 0;
       if (dateA === null) return 1;
       if (dateB === null) return -1;
@@ -981,8 +1014,7 @@ function setupArenaSearch() {
       let dateStr = 'unknown';
       let dateTitle = '';
       const now = Date.now();
-      const connectionTimestamp = conn.created_at || conn.channel.added_to_at;
-      const parsedTimestamp = parseArenaTimestamp(connectionTimestamp);
+      const parsedTimestamp = parseArenaTimestamp(conn.created_at);
       if (parsedTimestamp !== null) {
         const date = new Date(parsedTimestamp);
         if (!isNaN(date.getTime())) {
@@ -1026,7 +1058,7 @@ function setupArenaSearch() {
                   ${conn.channel.title || 'untitled'}
                 </a>
                 <div class="connection-meta">
-                  <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="connection-user">${conn.channel.user?.name}</a>
+                  <a href="https://are.na/${conn.user?.slug}" target="_blank" class="connection-user">${conn.user?.name}</a>
                   <span class="connection-date"${dateTitle ? ` title="${dateTitle}"` : ''}>${dateStr}</span>
                 </div>
               </div>
@@ -1047,25 +1079,7 @@ function setupArenaSearch() {
     return null;
   }
 
-  function setupInfiniteScroll() {
-    if (scrollObserver) {
-      scrollObserver.disconnect();
-    }
 
-    if (!scrollSentinel) return;
-
-    scrollObserver = new IntersectionObserver((entries) => {
-      const entry = entries[0];
-      if (entry.isIntersecting && !isLoadingMore && currentSearchCache && hasMorePages(currentSearchCache)) {
-        console.log('Sentinel intersecting, loading more...');
-        performSearch({ loadMore: true });
-      }
-    }, {
-      rootMargin: '200px'
-    });
-
-    scrollObserver.observe(scrollSentinel);
-  }
 
   function renderExactResults(exactMatches: Array<{ key: string; results: any[] }>) {
     if (exactMatches.length === 0) return;
