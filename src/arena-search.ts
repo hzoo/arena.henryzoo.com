@@ -1,4 +1,13 @@
 import { getArenaSearchResults } from './arena-api';
+import {
+  SearchCache,
+  getSearchCache,
+  addPageToCache,
+  getCachedBlocks,
+  hasMorePages,
+  getCacheAge,
+  clearSearchCache
+} from './arena-cache';
 
 // URL category type for sorting results
 type UrlCategory = 'exact' | 'subpath' | 'subdomain' | 'channel' | 'other';
@@ -136,6 +145,11 @@ function setupArenaSearch() {
   const showSubdomainsCheckbox = document.getElementById('show-subdomains') as HTMLInputElement;
 
   let currentPreviewPopup: HTMLDivElement | null = null;
+
+  // State for accumulated search
+  let currentSearchUrl: string = '';
+  let currentSearchCache: SearchCache | null = null;
+  let isLoadingMore: boolean = false;
 
   // Create lightbox element
   const lightbox = createLightbox();
@@ -305,7 +319,7 @@ function setupArenaSearch() {
     authTokenInput.focus();
   }
 
-  async function performSearch(cacheDuration: number = 60 * 1000) {
+  async function performSearch(options: { loadMore?: boolean; forceRefresh?: boolean } = {}) {
     const urlInputVal = urlInput.value.trim();
     if (!urlInputVal) {
       showError('Please enter a URL to search for');
@@ -332,32 +346,66 @@ function setupArenaSearch() {
     // Update URL for deep linking (without adding to history)
     history.replaceState(null, '', `/${encodeURIComponent(url)}`);
 
-    showLoading(true);
-    hideError();
-    hideResults();
+    const perPage = parseInt(perPageInput.value) || 50;
 
-    const options: {
-      appToken: string;
-      authToken?: string;
-      page?: number;
-      per?: number;
-      cacheDuration?: number;
-    } = {
-      appToken: import.meta.env.VITE_ARENA_APP_TOKEN,
-      page: parseInt(pageInput.value) || 1,
-      per: parseInt(perPageInput.value) || 24,
-      cacheDuration: cacheDuration
-    };
+    // Check if this is a new search or continuing existing
+    const isNewSearch = url !== currentSearchUrl || options.forceRefresh;
 
-    const authToken = authTokenInput.value.trim();
-    if (authToken) {
-      options.authToken = authToken;
+    if (isNewSearch) {
+      // Reset state for new search
+      currentSearchUrl = url;
+      currentSearchCache = null;
+      pageInput.value = '1';
+
+      // Check for existing cache (stale-while-revalidate)
+      const existingCache = getSearchCache(url);
+      if (existingCache && !options.forceRefresh) {
+        // Show cached results immediately
+        currentSearchCache = existingCache;
+        const cachedBlocks = getCachedBlocks(url);
+        await showResults(url, { total: existingCache.totalFromAPI, results: cachedBlocks }, { per: perPage });
+        document.title = `${url} - Are.na Search`;
+
+        // Don't fetch if cache is recent (within 15 minutes)
+        const cacheAgeMs = Date.now() - existingCache.timestamp;
+        if (cacheAgeMs < 15 * 60 * 1000) {
+          return;
+        }
+        // Otherwise continue to fetch fresh data in background
+      }
     }
 
+    // Determine which page to fetch
+    const pageToFetch = options.loadMore && currentSearchCache
+      ? currentSearchCache.lastPage + 1
+      : 1;
+
+    if (options.loadMore) {
+      isLoadingMore = true;
+      showLoadingMore(true);
+    } else if (!currentSearchCache) {
+      showLoading(true);
+      hideError();
+      hideResults();
+    }
+
+    const fetchOptions = {
+      appToken: import.meta.env.VITE_ARENA_APP_TOKEN,
+      authToken: authTokenInput.value.trim() || undefined,
+      page: pageToFetch,
+      per: perPage
+    };
+
     try {
-      const searchResults = await getArenaSearchResults(url, options);
-      await showResults(url, searchResults, options);
-      // Update page title with search term
+      const searchResults = await getArenaSearchResults(url, fetchOptions);
+
+      // Add to cache (accumulates and dedupes)
+      currentSearchCache = addPageToCache(url, pageToFetch, perPage, searchResults);
+
+      // Get all accumulated blocks
+      const allBlocks = getCachedBlocks(url);
+
+      await showResults(url, { total: currentSearchCache.totalFromAPI, results: allBlocks }, { per: perPage });
       document.title = `${url} - Are.na Search`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -367,10 +415,26 @@ function setupArenaSearch() {
       } else {
         showError(`Error: ${errorMessage}`);
       }
-      // Reset title on error
       document.title = 'Are.na Search';
     } finally {
       showLoading(false);
+      if (options.loadMore) {
+        isLoadingMore = false;
+        showLoadingMore(false);
+      }
+    }
+  }
+
+  function showLoadingMore(show: boolean) {
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreBtn) {
+      if (show) {
+        loadMoreBtn.textContent = 'loading...';
+        loadMoreBtn.setAttribute('disabled', 'true');
+      } else {
+        loadMoreBtn.textContent = 'Load More';
+        loadMoreBtn.removeAttribute('disabled');
+      }
     }
   }
 
@@ -401,37 +465,34 @@ function setupArenaSearch() {
   }
 
   async function showResults(url: string, searchResults: { total: number; results: any[] }, options: any) {
-    // Show summary
-    const currentPage = options.page || 1;
-    const perPage = options.per || 24;
-    const startIndex = (currentPage - 1) * perPage + 1;
-    const endIndex = Math.min(startIndex + searchResults.results.length - 1, searchResults.total);
+    const perPage = options.per || 50;
 
     // Group results by source URL for consolidation
     // Filter results to hide those that don't make sense (missing source info and not a channel)
     const filteredResults = searchResults.results.filter(result => {
       if (result.__typename === 'Channel') return true;
       const hasSource = result.source_url || result.source?.url;
-      // If requested to hide it, we could be even more strict here.
-      // For now, let's keep it if it has a source OR if it's a block we can at least link to Are.na
-      // But the user specifically said "hide it since that doesnt make sense" for /undefined links.
-      return !!hasSource; 
+      return !!hasSource;
     });
 
     const groupedResults = groupResultsByUrl(filteredResults);
     const totalGroups = Object.keys(groupedResults).length;
 
-    // Minimal summary - just counts (add + for large totals that hit API limit)
+    // Summary with cache age indicator
     const totalDisplay = searchResults.total >= 10000 ? `${searchResults.total}+` : searchResults.total;
+    const loadedCount = searchResults.results.length;
+    const cacheAgeText = currentSearchCache ? getCacheAge(currentSearchCache) : '';
+
     summaryDiv.innerHTML = `
       <div class="summary-minimal">
-        <span class="summary-stats">${totalDisplay} blocks</span>
+        <span class="summary-stats">${loadedCount} of ${totalDisplay} blocks</span>
         ${totalGroups !== searchResults.results.length ? `<span class="summary-divider">·</span><span class="summary-stats">${totalGroups} sources</span>` : ''}
+        ${cacheAgeText ? `<span class="summary-divider">·</span><span class="summary-cache-age">${cacheAgeText}</span>` : ''}
       </div>
     `;
 
-    // Show pagination
-    showPagination(searchResults.total, currentPage, perPage);
+    // Show "Load More" instead of pagination
+    showLoadMoreButton(searchResults.total, loadedCount, perPage);
 
     // Clear previous results
     searchResultsDiv.innerHTML = '';
@@ -857,73 +918,26 @@ function setupArenaSearch() {
     `;
   }
 
-  function showPagination(total: number, currentPage: number, perPage: number) {
-    const totalPages = Math.ceil(total / perPage);
+  function showLoadMoreButton(total: number, loaded: number, perPage: number) {
+    const hasMore = loaded < total;
 
-    if (totalPages <= 1) {
+    if (!hasMore) {
       paginationDiv.innerHTML = '';
       return;
     }
 
-    let paginationHTML = '';
-
-    // Previous button
-    if (currentPage > 1) {
-      paginationHTML += `
-        <button class="pagination-btn" onclick="changePage(${currentPage - 1})">
-          prev
-        </button>
-      `;
-    }
-
-    // Page numbers
-    const startPage = Math.max(1, currentPage - 2);
-    const endPage = Math.min(totalPages, currentPage + 2);
-
-    if (startPage > 1) {
-      paginationHTML += `
-        <button class="pagination-btn" onclick="changePage(1)">1</button>
-      `;
-      if (startPage > 2) {
-        paginationHTML += '<span class="px-1 text-[#6B6B6B] text-xs">...</span>';
-      }
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      const isActive = i === currentPage;
-      paginationHTML += `
-        <button class="pagination-btn ${isActive ? 'active' : ''}"
-                ${isActive ? 'disabled' : `onclick="changePage(${i})"`}>
-          ${i}
-        </button>
-      `;
-    }
-
-    if (endPage < totalPages) {
-      if (endPage < totalPages - 1) {
-        paginationHTML += '<span class="px-1 text-[#6B6B6B] text-xs">...</span>';
-      }
-      paginationHTML += `
-        <button class="pagination-btn" onclick="changePage(${totalPages})">${totalPages}</button>
-      `;
-    }
-
-    // Next button
-    if (currentPage < totalPages) {
-      paginationHTML += `
-        <button class="pagination-btn" onclick="changePage(${currentPage + 1})">
-          next
-        </button>
-      `;
-    }
-
-    paginationDiv.innerHTML = paginationHTML;
+    paginationDiv.innerHTML = `
+      <button id="load-more-btn" class="load-more-btn" onclick="loadMoreResults()">
+        Load More
+      </button>
+    `;
   }
 
-  // Make changePage function global for onclick handlers
-  (window as any).changePage = (page: number) => {
-    pageInput.value = page.toString();
-    performSearch();
+  // Make loadMoreResults function global for onclick handlers
+  (window as any).loadMoreResults = () => {
+    if (!isLoadingMore) {
+      performSearch({ loadMore: true });
+    }
   };
 
   function handleBlockPreviewMouseOver(event: Event) {

@@ -261,60 +261,31 @@ export async function searchBlocksForUrl(url: string, options?: {
   }
 }
 
-// Simplified function that just returns search results (no placements)
+// Fetch search results from Arena API (no caching - handled by arena-cache.ts)
 export async function getArenaSearchResults(url: string, options?: {
   appToken?: string,
   authToken?: string,
   page?: number,
   per?: number,
   connectionsPerBlock?: number,
-  cacheDuration?: number
 }): Promise<{
   total: number;
   results: SearchResult[];
 }> {
-  const cacheKey = `arena_search_cache_${url}_${options?.page || 1}_${options?.per || 25}`;
-  const duration = options?.cacheDuration || 60 * 1000;
-
-  try {
-    const cachedItem = localStorage.getItem(cacheKey);
-    if (cachedItem) {
-      const { timestamp, data } = JSON.parse(cachedItem);
-      if (Date.now() - timestamp < duration) {
-        console.log('Returning cached results for:', url, options);
-        return data;
-      } else {
-        // Cache expired
-        localStorage.removeItem(cacheKey);
-      }
-    }
-  } catch (e) {
-    console.warn('Error reading from cache:', e);
-    // Proceed to fetch if cache read fails
-  }
-
   try {
     const variables = {
-      url: url, 
+      url: url,
       page: options?.page || 1,
       per: options?.per || 25,
-      connectionsPerBlock: options?.connectionsPerBlock || 50 // Default to 50 connections
+      connectionsPerBlock: options?.connectionsPerBlock || 50
     };
 
     const result = await arena<any>(SEARCH_RESULTS_QUERY, variables, options);
 
-    const responseData = {
+    return {
       total: result.searches.advanced.total || 0,
       results: result.searches.advanced.results || []
     };
-
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: responseData }));
-    } catch (e) {
-      console.warn('Error saving to cache:', e);
-    }
-
-    return responseData;
   } catch (error) {
     console.error('Error getting Arena search results:', error);
     throw error;
