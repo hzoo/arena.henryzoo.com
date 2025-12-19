@@ -18,6 +18,9 @@ function truncateUrlForDisplay(url: string, maxLength: number = 50): string {
 
   // Remove protocol and www
   let display = url.replace(/^https?:\/\//, '').replace(/^www\./, '');
+  if (display.endsWith('/')) {
+    display = display.slice(0, -1);
+  }
 
   // If it has query params and is long, strip them
   const queryIndex = display.indexOf('?');
@@ -28,6 +31,10 @@ function truncateUrlForDisplay(url: string, maxLength: number = 50): string {
   // If still too long, truncate with ellipsis
   if (display.length > maxLength) {
     display = display.substring(0, maxLength - 1) + '…';
+  }
+
+  if (display.endsWith('/')) {
+    display = display.slice(0, -1);
   }
 
   return display;
@@ -879,7 +886,10 @@ function setupArenaSearch() {
     } else {
       // Render a single block or a group of blocks with the same source URL
       const resolvedUrl = resolveResultUrl(firstResult);
-      const fullDisplayUrl = resolvedUrl.replace(/^https?:\/\//, '').replace(/^www\./, '');
+      let fullDisplayUrl = resolvedUrl.replace(/^https?:\/\//, '').replace(/^www\./, '');
+      if (fullDisplayUrl.endsWith('/')) {
+        fullDisplayUrl = fullDisplayUrl.slice(0, -1);
+      }
       const displayUrl = truncateUrlForDisplay(resolvedUrl, 60);
 
       const rawTitle = firstResult.title ||
