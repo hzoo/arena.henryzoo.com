@@ -162,6 +162,9 @@ function setupArenaSearch() {
   // Subdomain filter checkbox
   const showSubdomainsCheckbox = document.getElementById('show-subdomains') as HTMLInputElement;
 
+  // Clear search button
+  const clearSearchBtn = document.getElementById('clear-search-btn') as HTMLButtonElement;
+
   let currentPreviewPopup: HTMLDivElement | null = null;
 
   // State for accumulated search
@@ -275,6 +278,97 @@ function setupArenaSearch() {
       }
     });
   }
+
+  // Clear search button functionality
+  function updateClearButton() {
+    if (clearSearchBtn) {
+      clearSearchBtn.classList.toggle('hidden', !urlInput.value);
+    }
+  }
+
+  // Show/hide clear button based on input value
+  urlInput.addEventListener('input', updateClearButton);
+
+  // Initial state
+  updateClearButton();
+
+  // Clear button click handler
+  if (clearSearchBtn) {
+    clearSearchBtn.addEventListener('click', () => {
+      urlInput.value = '';
+      urlInput.focus();
+      updateClearButton();
+    });
+  }
+
+  // Keyboard shortcuts
+  let currentFocusIndex = -1;
+
+  document.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLElement;
+    const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+    // "/" - Focus search input (when not in an input)
+    if (e.key === '/' && !isInputFocused) {
+      e.preventDefault();
+      urlInput.focus();
+      urlInput.select();
+      return;
+    }
+
+    // Cmd/Ctrl+K - Focus search input (always)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      urlInput.focus();
+      urlInput.select();
+      return;
+    }
+
+    // Escape - Clear search input or blur if empty
+    if (e.key === 'Escape' && document.activeElement === urlInput) {
+      if (urlInput.value) {
+        urlInput.value = '';
+        updateClearButton();
+      } else {
+        urlInput.blur();
+      }
+      return;
+    }
+
+    // j/k - Navigate results (vim-style, when not in input)
+    if (!isInputFocused && (e.key === 'j' || e.key === 'k')) {
+      const resultGroups = document.querySelectorAll('.result-group');
+      if (resultGroups.length === 0) return;
+
+      if (e.key === 'j') {
+        currentFocusIndex = Math.min(currentFocusIndex + 1, resultGroups.length - 1);
+      } else if (e.key === 'k') {
+        currentFocusIndex = Math.max(currentFocusIndex - 1, 0);
+      }
+
+      const targetGroup = resultGroups[currentFocusIndex] as HTMLElement;
+      if (targetGroup) {
+        targetGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Add focus styling
+        resultGroups.forEach(g => g.classList.remove('keyboard-focus'));
+        targetGroup.classList.add('keyboard-focus');
+      }
+      return;
+    }
+
+    // Enter - Open first link in focused result
+    if (e.key === 'Enter' && !isInputFocused && currentFocusIndex >= 0) {
+      const resultGroups = document.querySelectorAll('.result-group');
+      const focusedGroup = resultGroups[currentFocusIndex];
+      if (focusedGroup) {
+        const firstLink = focusedGroup.querySelector('a[href]') as HTMLAnchorElement;
+        if (firstLink) {
+          window.open(firstLink.href, '_blank');
+        }
+      }
+      return;
+    }
+  });
 
   // Handle per-page toggle buttons
   if (perPageToggle) {
@@ -537,8 +631,6 @@ function setupArenaSearch() {
         ${cacheAgeText ? `<button id="refresh-cache-btn" class="summary-refresh-btn" title="Refresh cache">refresh</button>` : ''}
       </div>
     `;
-
-    // Clear previous results
 
     // Clear previous results
     searchResultsDiv.innerHTML = '';
@@ -1088,8 +1180,6 @@ function setupArenaSearch() {
     if (!Number.isNaN(normalizedParsed)) return normalizedParsed;
     return null;
   }
-
-
 
   function renderExactResults(exactMatches: Array<{ key: string; results: any[] }>) {
     if (exactMatches.length === 0) return;

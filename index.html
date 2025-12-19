@@ -37,7 +37,10 @@
         <!-- Search Toolbar -->
         <div class="search-form">
             <div class="search-toolbar">
-                <input type="url" id="arena-url-input" placeholder="enter url" class="search-input">
+                <div class="search-input-wrapper">
+                    <input type="url" id="arena-url-input" placeholder="enter url" class="search-input">
+                    <button type="button" id="clear-search-btn" class="clear-btn hidden" aria-label="Clear search">&times;</button>
+                </div>
                 <button id="arena-search-btn" class="search-btn">→</button>
                 <input type="hidden" id="arena-per-page-input" value="25">
 
@@ -82,7 +85,7 @@
         <div id="arena-results" class="results-section hidden">
             <div class="results-header">
                 <div id="arena-summary"></div>
-                <button id="load-more-btn" class="load-more-btn hidden">load more</button>
+                <button id="load-more-btn" class="load-more-btn hidden">load page 2</button>
             </div>
 
             <!-- Hero for exact matches -->
