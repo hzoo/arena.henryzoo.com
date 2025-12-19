@@ -976,10 +976,18 @@ function setupArenaSearch() {
         <div class="connections-list">
           ${uniqueConnections.map(conn => {
       let dateStr = 'unknown';
+      let dateTitle = '';
       const now = Date.now();
       if (conn.channel.added_to_at) {
         const date = new Date(conn.channel.added_to_at);
         if (!isNaN(date.getTime())) {
+          dateTitle = date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
           const diffMs = Math.max(0, now - date.getTime());
           const diffMins = Math.floor(diffMs / (60 * 1000));
           const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
@@ -1014,7 +1022,7 @@ function setupArenaSearch() {
                 </a>
                 <div class="connection-meta">
                   <a href="https://are.na/${conn.channel.user?.slug}" target="_blank" class="connection-user">${conn.channel.user?.name}</a>
-                  <span class="connection-date">${dateStr}</span>
+                  <span class="connection-date"${dateTitle ? ` title="${dateTitle}"` : ''}>${dateStr}</span>
                 </div>
               </div>
             `;

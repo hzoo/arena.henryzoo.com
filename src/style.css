@@ -107,6 +107,13 @@ body {
 /* ========== SEARCH FORM ========== */
 .search-form {
   margin-bottom: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gray-mid);
 }
 
 .search-toolbar {
