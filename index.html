@@ -50,14 +50,15 @@
                     <button type="button" class="per-page-btn" data-value="100">100</button>
                 </div>
 
-                <button id="advanced-toggle" class="advanced-toggle" type="button">advanced</button>
+                <button id="advanced-toggle" class="advanced-toggle" type="button" aria-controls="advanced-panel"
+                    aria-expanded="false">advanced</button>
 
                 <label class="checkbox-label">
                     <input type="checkbox" id="show-subdomains" checked>
                     <span>subdomains</span>
                 </label>
 
-                <div id="advanced-panel" class="advanced-panel hidden">
+                <div id="advanced-panel" class="advanced-panel hidden" aria-hidden="true">
                     <div class="page-input-group">
                         <span class="page-label">jump to pg</span>
                         <input type="number" id="arena-page-input" value="1" min="1" class="page-input">

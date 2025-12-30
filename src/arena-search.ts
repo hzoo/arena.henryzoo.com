@@ -223,9 +223,16 @@ function setupArenaSearch() {
   });
 
   if (advancedToggle && advancedPanel) {
+    const syncAdvancedState = () => {
+      const isHidden = advancedPanel.classList.contains('hidden');
+      advancedToggle.setAttribute('aria-expanded', String(!isHidden));
+      advancedPanel.setAttribute('aria-hidden', String(isHidden));
+    };
+    syncAdvancedState();
     advancedToggle.addEventListener('click', () => {
       const isHidden = advancedPanel.classList.contains('hidden');
       advancedPanel.classList.toggle('hidden', !isHidden);
+      syncAdvancedState();
     });
   }
 
@@ -811,6 +818,17 @@ function setupArenaSearch() {
     }
   }
 
+  function updateScrollCueForSection(section: Element) {
+    const list = section.querySelector('.connections-list') as HTMLElement | null;
+    if (!list) return;
+    const canScrollY = list.scrollHeight > list.clientHeight + 1;
+    const canScrollX = list.scrollWidth > list.clientWidth + 1;
+    const maxScrollLeft = list.scrollWidth - list.clientWidth;
+    const showScrollX = canScrollX && list.scrollLeft < maxScrollLeft - 1;
+    section.classList.toggle('is-scrollable', canScrollY);
+    section.classList.toggle('is-scrollable-x', showScrollX);
+  }
+
   function updateScrollCues() {
     const sections = document.querySelectorAll('.connections-section');
     sections.forEach(section => {
@@ -818,14 +836,9 @@ function setupArenaSearch() {
       if (!list) return;
       if (!list.dataset.scrollCueBound) {
         list.dataset.scrollCueBound = 'true';
-        list.addEventListener('scroll', () => updateScrollCues());
+        list.addEventListener('scroll', () => updateScrollCueForSection(section));
       }
-      const canScrollY = list.scrollHeight > list.clientHeight + 1;
-      const canScrollX = list.scrollWidth > list.clientWidth + 1;
-      const maxScrollLeft = list.scrollWidth - list.clientWidth;
-      const showScrollX = canScrollX && list.scrollLeft < maxScrollLeft - 1;
-      section.classList.toggle('is-scrollable', canScrollY);
-      section.classList.toggle('is-scrollable-x', showScrollX);
+      updateScrollCueForSection(section);
     });
   }
 
@@ -1012,7 +1025,7 @@ function setupArenaSearch() {
       // Thumbnail (clickable to expand) or type badge
       const thumbnailOrBadge = previewImageUrl
         ? `<button class="block-thumbnail clickable" onclick="openLightbox('${previewImageUrl}')" aria-label="View larger image">
-             <img src="${previewImageUrl}" alt="" loading="lazy" />
+             <img src="${previewImageUrl}" alt="" loading="lazy" decoding="async" />
              <span class="expand-icon">⤢</span>
            </button>`
         : `<span class="block-type-badge">${typeLabel}</span>`;
@@ -1216,6 +1229,7 @@ function setupArenaSearch() {
     const img = document.createElement('img');
     img.src = imageUrl;
     img.alt = 'Preview';
+    img.decoding = 'async';
     img.style.maxWidth = '100%';
     img.style.maxHeight = '100%';
     img.style.display = 'block';
